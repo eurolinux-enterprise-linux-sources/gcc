@@ -1579,3 +1579,26 @@
 +{/* { dg-error "wrong number of arguments specified" } */
 +  return 0;
 +}
+--- gcc/testsuite/gcc.target/s390/s390.exp.jj	2015-05-29 19:01:39.000000000 +0200
++++ gcc/testsuite/gcc.target/s390/s390.exp	2015-06-11 16:15:59.183085886 +0200
+@@ -33,9 +33,18 @@ if ![info exists DEFAULT_CFLAGS] then {
+ # Initialize `dg'.
+ dg-init
+ 
++set hotpatch_tests $srcdir/$subdir/hotpatch-\[0-9\]*.c
++
+ # Main loop.
+-dg-runtest [lsort [glob -nocomplain $srcdir/$subdir/*.\[cS\]]] \
+-	"" $DEFAULT_CFLAGS
++dg-runtest [lsort [prune [glob -nocomplain $srcdir/$subdir/*.\[cS\]] \
++			 $hotpatch_tests]] "" $DEFAULT_CFLAGS
++
++# Additional hotpatch torture tests.
++torture-init
++set HOTPATCH_TEST_OPTS [list -Os -O0 -O1 -O2 -O3]
++set-torture-options $HOTPATCH_TEST_OPTS
++gcc-dg-runtest [lsort [glob -nocomplain $hotpatch_tests]] $DEFAULT_CFLAGS
++torture-finish
+ 
+ # All done.
+ dg-finish

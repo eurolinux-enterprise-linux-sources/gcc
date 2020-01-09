@@ -2,7 +2,7 @@
 %global SVNREV 188105
 # Note, gcc_release must be integer, if you want to add suffixes to
 # %{release}, append them after %{gcc_release} on Release: line.
-%global gcc_release 16
+%global gcc_release 17
 %global _unpackaged_files_terminate_build 0
 %global multilib_64_archs sparc64 ppc64 s390x x86_64
 %if 0%{?fedora} >= 13 || 0%{?rhel} >= 6
@@ -211,6 +211,9 @@ Patch50: gcc44-rh1150606.patch
 Patch51: gcc44-pr62174.patch
 Patch52: gcc44-pr64979.patch
 Patch53: gcc44-s390-hotpatch.patch
+Patch54: gcc44-pr43706.patch
+Patch55: gcc44-pr49484.patch
+Patch56: gcc44-rh1241495.patch
 
 Patch1000: fastjar-0.97-segfault.patch
 Patch1001: fastjar-0.97-len1.patch
@@ -657,6 +660,9 @@ GNAT is a GNU Ada 95 front-end to GCC. This package includes static libraries.
 %patch51 -p0 -b .pr62174~
 %patch52 -p0 -b .pr64979~
 %patch53 -p0 -b .s390-hotpatch~
+%patch54 -p0 -b .pr43706~
+%patch55 -p0 -b .pr49484~
+%patch56 -p0 -b .rh1241495~
 
 # This testcase doesn't compile.
 rm libjava/testsuite/libjava.lang/PR35020*
@@ -2264,6 +2270,15 @@ fi
 %endif
 
 %changelog
+* Tue Dec 15 2015 Jakub Jelinek <jakub@redhat.com> 4.4.7-17
+- change libgomp default spincount if OMP_WAIT_POLICY is not specified
+  (#1229852, PR libgomp/43706)
+- remove -Wl,-z,nodlopen from Ada libraries, which no longer contain
+  trampolines (#1241495)
+- guard __gcov_flush body in libgcov.a with a mutex (#1251488,
+  PR gcov/49484, PR gcov-profile/52627)
+- add missing s390.exp hunk from -mhotpatch= support (#1233260)
+
 * Mon Jun  1 2015 Jakub Jelinek <jakub@redhat.com> 4.4.7-16
 - update -mhotpatch= support for s390{,x} (#1148120, PR target/66215)
 
