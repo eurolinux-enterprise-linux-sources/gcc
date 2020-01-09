@@ -1,0 +1,50 @@
+2010-03-14  Tobias Burnus  <burnus@net-b.de>
+
+	PR fortran/43362
+	* resolve.c (resolve_ordinary_assign): Add check to avoid segfault.
+
+	* gfortran.dg/impure_constructor_1.f90: New test.
+
+--- gcc/fortran/resolve.c	(revision 157446)
++++ gcc/fortran/resolve.c	(revision 157447)
+@@ -6640,6 +6640,7 @@ resolve_ordinary_assign (gfc_code *code,
+       if (lhs->ts.type == BT_DERIVED
+ 	    && lhs->expr_type == EXPR_VARIABLE
+ 	    && lhs->ts.derived->attr.pointer_comp
++	    && rhs->expr_type == EXPR_VARIABLE
+ 	    && gfc_impure_variable (rhs->symtree->n.sym))
+ 	{
+ 	  gfc_error ("The impure variable at %L is assigned to "
+--- gcc/testsuite/gfortran.dg/impure_constructor_1.f90	(revision 0)
++++ gcc/testsuite/gfortran.dg/impure_constructor_1.f90	(revision 157447)
+@@ -0,0 +1,30 @@
++! { dg-do compile }
++!
++! PR fortran/43362
++!
++module m
++  implicit none
++  type t
++    integer, pointer :: a
++  end type t
++  type t2
++    type(t) :: b
++  end type t2
++  type t3
++    type(t), pointer :: b
++  end type t3
++contains
++ pure subroutine foo(x)
++   type(t), target, intent(in) :: x
++   type(t2) :: y
++   type(t3) :: z
++
++   ! The following gave an ICE but is valid:
++   y = t2(x) ! Note: F2003, C1272 (3) and (4) do not apply
++   
++   ! Variant which is invalid as C1272 (3) applies
++   z = t3(x) ! { dg-error "Invalid expression in the derived type constructor" "" { xfail *-*-* } }
++ end subroutine foo
++end module m
++
++

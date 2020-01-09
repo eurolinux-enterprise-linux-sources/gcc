@@ -2,7 +2,7 @@
 %global SVNREV 188105
 # Note, gcc_release must be integer, if you want to add suffixes to
 # %{release}, append them after %{gcc_release} on Release: line.
-%global gcc_release 17
+%global gcc_release 18
 %global _unpackaged_files_terminate_build 0
 %global multilib_64_archs sparc64 ppc64 s390x x86_64
 %if 0%{?fedora} >= 13 || 0%{?rhel} >= 6
@@ -214,6 +214,8 @@ Patch53: gcc44-s390-hotpatch.patch
 Patch54: gcc44-pr43706.patch
 Patch55: gcc44-pr49484.patch
 Patch56: gcc44-rh1241495.patch
+Patch57: gcc44-pr62258.patch
+Patch58: gcc44-pr43362.patch
 
 Patch1000: fastjar-0.97-segfault.patch
 Patch1001: fastjar-0.97-len1.patch
@@ -663,6 +665,8 @@ GNAT is a GNU Ada 95 front-end to GCC. This package includes static libraries.
 %patch54 -p0 -b .pr43706~
 %patch55 -p0 -b .pr49484~
 %patch56 -p0 -b .rh1241495~
+%patch57 -p0 -b .pr62258~
+%patch58 -p0 -b .pr43362~
 
 # This testcase doesn't compile.
 rm libjava/testsuite/libjava.lang/PR35020*
@@ -2270,6 +2274,10 @@ fi
 %endif
 
 %changelog
+* Tue Oct 18 2016 Jakub Jelinek <jakub@redhat.com> 4.4.7-18
+- fix up std::rethrow_exception (PR libstdc++/62258, #1380760)
+- fix fortran ICE in resolve_ordinary_assign (PR fortran/43362, #1356346)
+
 * Tue Dec 15 2015 Jakub Jelinek <jakub@redhat.com> 4.4.7-17
 - change libgomp default spincount if OMP_WAIT_POLICY is not specified
   (#1229852, PR libgomp/43706)
