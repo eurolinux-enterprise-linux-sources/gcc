@@ -2,7 +2,7 @@
 %global SVNREV 188105
 # Note, gcc_release must be integer, if you want to add suffixes to
 # %{release}, append them after %{gcc_release} on Release: line.
-%global gcc_release 18
+%global gcc_release 23
 %global _unpackaged_files_terminate_build 0
 %global multilib_64_archs sparc64 ppc64 s390x x86_64
 %if 0%{?fedora} >= 13 || 0%{?rhel} >= 6
@@ -40,7 +40,7 @@ Summary: Various compilers (C, C++, Objective-C, Java, ...)
 Name: gcc
 %global gcc_version 4.4.4
 Version: 4.4.7
-Release: %{gcc_release}%{?dist}.2
+Release: %{gcc_release}%{?dist}
 %if "%{version}" != "%{gcc_version}"
 %define gcc_provides %{gcc_version}-15%{?dist}
 %endif
@@ -216,6 +216,8 @@ Patch55: gcc44-pr49484.patch
 Patch56: gcc44-rh1241495.patch
 Patch57: gcc44-pr62258.patch
 Patch58: gcc44-pr43362.patch
+Patch59: gcc44-rh1402484.patch
+Patch60: gcc44-rh1104812.patch
 
 Patch1000: fastjar-0.97-segfault.patch
 Patch1001: fastjar-0.97-len1.patch
@@ -230,6 +232,9 @@ Patch1104: gcc44-rh1535656-4.patch
 Patch1105: gcc44-rh1535656-5.patch
 Patch1106: gcc44-rh1535656-6.patch
 Patch1107: gcc44-rh1535656-7.patch
+
+Patch1200: gcc44-rh1553817.patch
+Patch1201: gcc44-rh1553817-2.patch
 
 # On ARM EABI systems, we do want -gnueabi to be part of the
 # target triple.
@@ -675,6 +680,8 @@ GNAT is a GNU Ada 95 front-end to GCC. This package includes static libraries.
 %patch56 -p0 -b .rh1241495~
 %patch57 -p0 -b .pr62258~
 %patch58 -p0 -b .pr43362~
+%patch59 -p0 -b .rh1402484~
+%patch60 -p0 -b .rh1104812~
 
 # This testcase doesn't compile.
 rm libjava/testsuite/libjava.lang/PR35020*
@@ -694,6 +701,9 @@ tar xzf %{SOURCE4}
 %patch1105 -p1 -b .rh1535656-5~
 %patch1106 -p1 -b .rh1535656-6~
 %patch1107 -p1 -b .rh1535656-7~
+
+%patch1200 -p0 -b .rh1553817~
+%patch1201 -p0 -b .rh1553817-2~
 
 %if %{bootstrap_java}
 tar xjf %{SOURCE10}
@@ -2290,11 +2300,21 @@ fi
 %endif
 
 %changelog
-* Wed Jan 31 2018 Jeff Law <law@redhat.com> 4.4.7-18.2
-- Fix indirect_jump/tablejump patters for retpolines (#1535656)
+* Thu Apr 12 2018 Jeff Law <law@redhat.com> 4.4.7-23
+- Avoid emitting CFI magic for thunks when -fno-dwarf2-cfi-asm
 
-* Tue Jan 23 2018 Jeff Law <law@redhat.com> 4.4.7-18.1
+* Sat Mar 24 2018 Jeff Law <law@redhat.com> 4.4.7-22
+- Spectre mitigations patch for s390x (#1553817)
+
+* Wed Jan 31 2018 Jeff Law <law@redhat.com> 4.4.7-21
+- Fix indirect_jump/tablejump patterns for retpolines (#1535656)
+
+* Tue Jan 23 2018 Jeff Law <law@redhat.com> 4.4.7-20
 - Retpoline support (#1535656)
+
+* Thu Dec  7 2017 Marek Polacek <polacek@redhat.com> 4.4.7-19
+- fix distribute_notes (#1402484)
+- always use _Unwind_GetIPInfo in unwind-c.c (#1104812)
 
 * Tue Oct 18 2016 Jakub Jelinek <jakub@redhat.com> 4.4.7-18
 - fix up std::rethrow_exception (PR libstdc++/62258, #1380760)

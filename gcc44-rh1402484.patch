@@ -1,0 +1,30 @@
+--- gcc/combine.c.jj	2014-05-15 12:37:42.000000000 +0200
++++ gcc/combine.c	2016-12-13 19:52:25.428818416 +0100
+@@ -12626,6 +12626,10 @@ distribute_notes (rtx notes, rtx from_in
+   rtx note, next_note;
+   rtx tem;
+ 
++  /* If i2 has been deleted by earlier distribute_notes call, ignore it.  */
++  if (i2 && NOTE_P (i2) && NOTE_KIND (i2) == NOTE_INSN_DELETED)
++    i2 = NULL_RTX;
++
+   for (note = notes; note; note = next_note)
+     {
+       rtx place = 0, place2 = 0;
+--- gcc/testsuite/gcc.c-torture/compile/rh1402484.c	1970-01-01 01:00:00.000000000 +0100
++++ gcc/testsuite/gcc.c-torture/compile/rh1402484.c	2017-12-07 14:15:06.140836089 +0100
+@@ -0,0 +1,14 @@
++unsigned short a;
++int b;
++
++void
++foo (void)
++{
++  union { long e; int f[2]; } c;
++  int d;
++  c.f[0] = 0;
++  c.f[1] = d << 1;
++  a = c.e;
++  if (a == 0)
++    b = 0;
++}

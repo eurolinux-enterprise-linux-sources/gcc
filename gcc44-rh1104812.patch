@@ -1,0 +1,11 @@
+--- gcc/unwind-c.c	2009-04-14 15:51:12.000000000 +0200
++++ gcc/unwind-c.c	2017-12-07 14:31:09.758602273 +0100
+@@ -152,7 +152,7 @@ PERSONALITY_FUNCTION (int version,
+ 
+   /* Parse the LSDA header.  */
+   p = parse_lsda_header (context, language_specific_data, &info);
+-#ifdef HAVE_GETIPINFO
++#if 1
+   ip = _Unwind_GetIPInfo (context, &ip_before_insn);
+ #else
+   ip = _Unwind_GetIP (context);
