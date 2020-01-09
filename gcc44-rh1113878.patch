@@ -1,0 +1,62 @@
+2014-07-01  Jakub Jelinek  <jakub@redhat.com>
+
+	* tree-ssa.c (useless_type_conversion_p_1): If
+	lang_hooks.types_compatible_p returns true, but the aggregate
+	types have different integer sizes, return false.
+
+--- gcc/tree-ssa.c.jj	2014-04-24 21:34:05.000000000 +0200
++++ gcc/tree-ssa.c	2014-07-01 18:25:34.544656536 +0200
+@@ -1520,7 +1520,19 @@ useless_type_conversion_p_1 (tree outer_
+ 	 have TYPE_STRUCTURAL_EQUALITY_P set.  */
+ 
+       /* ???  This should eventually just return false.  */
+-      return lang_hooks.types_compatible_p (inner_type, outer_type);
++      if (!lang_hooks.types_compatible_p (inner_type, outer_type))
++	return false;
++      /* The C FE langhook sometimes returns true even for aggregates
++	 with different size.  Make sure those aren't counted as
++	 useless.  */
++      if (TYPE_SIZE_UNIT (inner_type)
++	  && TYPE_SIZE_UNIT (outer_type)
++	  && TREE_CODE (TYPE_SIZE_UNIT (inner_type)) == INTEGER_CST
++	  && TREE_CODE (TYPE_SIZE_UNIT (outer_type)) == INTEGER_CST
++	  && !tree_int_cst_equal (TYPE_SIZE_UNIT (inner_type),
++				  TYPE_SIZE_UNIT (outer_type)))
++	return false;
++      return true;
+     }
+   /* Also for functions and possibly other types with
+      TYPE_STRUCTURAL_EQUALITY_P set.  */
+--- gcc/testsuite/gcc.c-torture/execute/20140701-1.c.jj	2014-03-19 15:57:57.735114622 +0100
++++ gcc/testsuite/gcc.c-torture/execute/20140701-1.c	2014-07-01 18:23:55.996149630 +0200
+@@ -0,0 +1,30 @@
++struct S
++{
++  int a[20];
++  int b;
++};
++
++void
++foo (struct S *p)
++{
++  if (p->b != 0xff)
++    __builtin_abort ();
++}
++
++int
++main (void)
++{
++  struct T
++  {
++    int a[20];
++    int b;
++    int c[10];
++  };
++  struct T d;
++  struct S e;
++  __builtin_memset (&d, 0, sizeof (d));
++  d.b = 0xff;
++  __builtin_memcpy (&e, &d, sizeof (e));
++  foo (&e);
++  return 0;
++}

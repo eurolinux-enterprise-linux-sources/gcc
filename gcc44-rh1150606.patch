@@ -1,0 +1,33 @@
+2015-02-19  Jakub Jelinek  <jakub@redhat.com>
+
+	* gcc.c-torture/execute/rh1150606.c: New test.
+
+--- gcc/testsuite/gcc.c-torture/execute/rh1150606.c.jj	2015-02-19 18:05:56.042691053 +0100
++++ gcc/testsuite/gcc.c-torture/execute/rh1150606.c	2015-02-19 18:02:19.000000000 +0100
+@@ -0,0 +1,26 @@
++struct S
++{
++  unsigned long long a : 40;
++  unsigned long long b : 24;
++};
++
++int
++main ()
++{
++  struct S s[10];
++  unsigned long long i;
++  unsigned long long r = 0;
++  struct S *j;
++  for (i = 0; i < 10; ++i)
++    {
++      struct S t = { (1ULL << 40) - 1, i };
++      s[i] = t;
++    }
++
++  for (j = s; j != s + 10; ++j)
++    r += j->b;
++
++  if (r != 45)
++    abort ();
++  return 0;
++}

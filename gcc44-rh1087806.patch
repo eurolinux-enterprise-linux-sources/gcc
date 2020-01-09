@@ -1,0 +1,55 @@
+2014-05-07  Jason Merrill  <jason@redhat.com>
+
+	BZ 1087806
+	* call.c (convert_arg_to_ellipsis, build_x_va_arg): Check
+	TREE_ADDRESSABLE rather than pod_type_p.
+
+--- gcc/cp/call.c	(revision 211824)
++++ gcc/cp/call.c	(working copy)
+@@ -4949,7 +4949,7 @@
+   arg = require_complete_type (arg);
+ 
+   if (arg != error_mark_node
+-      && !pod_type_p (TREE_TYPE (arg)))
++      && TREE_ADDRESSABLE (TREE_TYPE (arg)))
+     {
+       /* Undefined behavior [expr.call] 5.2.2/7.  We used to just warn
+ 	 here and do a bitwise copy, but now cp_expr_size will abort if we
+@@ -4983,7 +4983,8 @@
+ 
+   expr = mark_lvalue_use (expr);
+ 
+-  if (! pod_type_p (type))
++  if (TREE_ADDRESSABLE (type)
++      || TREE_CODE (type) == REFERENCE_TYPE)
+     {
+       /* Remove reference types so we don't ICE later on.  */
+       tree type1 = non_reference (type);
+--- gcc/testsuite/g++.dg/ext/va-arg2.C	(revision 0)
++++ gcc/testsuite/g++.dg/ext/va-arg2.C	(working copy)
+@@ -0,0 +1,25 @@
++// BZ 1087806
++// { dg-do run }
++
++#include <stdarg.h>
++
++class t1
++{
++  int x;
++public:
++  t1(int x): x(x) {}
++};
++
++int varg(const char* fmt,...)
++{
++  va_list VList;
++  va_start(VList,fmt);
++  t1 p1 = (t1)(va_arg((VList),t1));
++  va_end(VList);
++}
++
++int main()
++{
++  t1 p1(5);
++  varg ("foo", p1);
++}

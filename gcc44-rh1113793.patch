@@ -1,0 +1,35 @@
+2014-07-02  Jakub Jelinek  <jakub@redhat.com>
+	    Fritz Reese  <Reese-Fritz@zai.com>
+
+	* decl.c (variable_decl): Reject old style initialization
+	for derived type components.
+
+	* gfortran.dg/oldstyle_5.f: New test.
+
+--- gcc/fortran/decl.c	(revision 212226)
++++ gcc/fortran/decl.c	(revision 212227)
+@@ -1738,6 +1738,13 @@ variable_decl (int elem)
+       if (gfc_notify_std (GFC_STD_GNU, "Extension: Old-style "
+ 			  "initialization at %C") == FAILURE)
+ 	return MATCH_ERROR;
++      else if (gfc_current_state () == COMP_DERIVED)
++	{
++	  gfc_error ("Invalid old style initialization for derived type "
++		     "component at %C");
++	  m = MATCH_ERROR;
++	  goto cleanup;
++	}
+  
+       return match_old_style_init (name);
+     }
+--- gcc/testsuite/gfortran.dg/oldstyle_5.f	(revision 0)
++++ gcc/testsuite/gfortran.dg/oldstyle_5.f	(revision 212227)
+@@ -0,0 +1,8 @@
++C { dg-do compile }
++      TYPE T
++      INTEGER A(2)/1,2/ ! { dg-error "Invalid old style initialization for derived type component" }
++      END TYPE
++      TYPE S
++      INTEGER B/1/ ! { dg-error "Invalid old style initialization for derived type component" }
++      END TYPE
++      END

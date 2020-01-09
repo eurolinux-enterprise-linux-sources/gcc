@@ -1,0 +1,54 @@
+2012-12-06  Jason Merrill  <jason@redhat.com>
+ 
+	PR c++/54653
+	* parser.c (cp_parser_class_head): A partial specialization scope
+	counts as a template.
+	* pt.c (tsubst_template_parms): Handle template template parm parms.
+	(tsubst_decl) [TEMPLATE_DECL]: Handle getting a template template
+	argument back.
+
+--- gcc/testsuite/g++.dg/template/partial-specialization2.C	(revision 0)
++++ gcc/testsuite/g++.dg/template/partial-specialization2.C	(revision 194249)
+@@ -0,0 +1,8 @@
++// PR c++/54653
++
++template <class T> struct A;
++template <class T> struct A<T*> {
++  template <class U> struct B;
++};
++
++template <class T> struct A<T*>::B<T*> { }; // { dg-error "too few template-parameter-lists" }
+--- gcc/cp/pt.c	(revision 194248)
++++ gcc/cp/pt.c	(revision 194249)
+@@ -7959,7 +7959,7 @@ tsubst_template_parms (tree parms, tree
+   ++processing_template_decl;
+ 
+   for (new_parms = &r;
+-       TMPL_PARMS_DEPTH (parms) > TMPL_ARGS_DEPTH (args);
++       parms && TMPL_PARMS_DEPTH (parms) > TMPL_ARGS_DEPTH (args);
+        new_parms = &(TREE_CHAIN (*new_parms)),
+ 	 parms = TREE_CHAIN (parms))
+     {
+@@ -8203,6 +8203,10 @@ tsubst_decl (tree t, tree args, tsubst_f
+ 	    tree new_type = tsubst (TREE_TYPE (t), args, complain, in_decl);
+ 	    if (new_type == error_mark_node)
+ 	      return error_mark_node;
++	    /* If we get a real template back, return it.  This can happen in
++	       the context of most_specialized_class.  */
++	    if (TREE_CODE (new_type) == TEMPLATE_DECL)
++	      return new_type;
+ 
+ 	    r = copy_decl (t);
+ 	    TREE_CHAIN (r) = NULL_TREE;
+--- gcc/cp/parser.c	(revision 194248)
++++ gcc/cp/parser.c	(revision 194249)
+@@ -15405,7 +15405,8 @@ cp_parser_class_head (cp_parser* parser,
+ 		&& CLASS_TYPE_P (scope)
+ 		&& CLASSTYPE_TEMPLATE_INFO (scope)
+ 		&& PRIMARY_TEMPLATE_P (CLASSTYPE_TI_TEMPLATE (scope))
+-		&& !CLASSTYPE_TEMPLATE_SPECIALIZATION (scope))
++		&& (!CLASSTYPE_TEMPLATE_SPECIALIZATION (scope)
++		    || uses_template_parms (CLASSTYPE_TI_ARGS (scope))))
+ 	      ++num_templates;
+ 	}
+     }

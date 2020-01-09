@@ -1,0 +1,1581 @@
+2015-06-01  Jakub Jelinek  <jakub@redhat.com>
+
+	* gcc.target/s390/hotpatch-compile-15.c: Remove dg-prune-output
+	directives.
+	(hp3, hp4): Add inline keyword.
+	* gcc.target/s390/hotpatch-19.c: Remove dg-prune-output directive.
+	(hp2): Add inline keyword.
+	* gcc.target/s390/hotpatch-19.c: Remove dg-prune-output directives.
+	(hp2): Add inline keyword.
+
+2015-05-29  Dominik Vogt  <vogt@linux.vnet.ibm.com>
+
+	PR target/66215
+	* config/s390/s390.c (s390_reorg): Fix placement of post-label NOPs
+	with -mhotpatch=.
+
+	* gcc.target/s390/hotpatch-1.c: Remove optimization options from
+	dg-options.
+	* gcc.target/s390/hotpatch-10.c: Likewise.
+	* gcc.target/s390/hotpatch-11.c: Likewise.
+	* gcc.target/s390/hotpatch-12.c: Likewise.
+	* gcc.target/s390/hotpatch-17.c: Likewise.
+	* gcc.target/s390/hotpatch-18.c: Likewise.
+	* gcc.target/s390/hotpatch-20.c: Likewise.
+	* gcc.target/s390/hotpatch-21.c: Likewise.
+	* gcc.target/s390/hotpatch-22.c: Likewise.
+	* gcc.target/s390/hotpatch-23.c: Likewise.
+	* gcc.target/s390/hotpatch-24.c: Likewise.
+	* gcc.target/s390/hotpatch-2.c: Likewise.  Adjust scan-assembler
+	to check for the exact nops too.
+	* gcc.target/s390/hotpatch-3.c: Likewise.
+	* gcc.target/s390/hotpatch-4.c: Likewise.
+	* gcc.target/s390/hotpatch-5.c: Likewise.
+	* gcc.target/s390/hotpatch-6.c: Likewise.
+	* gcc.target/s390/hotpatch-7.c: Likewise.
+	* gcc.target/s390/hotpatch-8.c: Likewise.
+	* gcc.target/s390/hotpatch-9.c: Likewise.
+	* gcc.target/s390/hotpatch-14.c: Likewise.
+	* gcc.target/s390/hotpatch-15.c: Likewise.
+	* gcc.target/s390/hotpatch-16.c: Likewise.
+	* gcc.target/s390/hotpatch-19.c: Likewise.
+	* gcc.target/s390/hotpatch-25.c: Likewise.  Remove
+	scan-assembler-times counting number of .align directives.
+	* gcc.target/s390/hotpatch-13.c: Remove optimization options from
+	dg-options.  Remove scan-assembler-times counting number of .align
+	directives.
+	* gcc.target/s390/hotpatch-26.c: New file.
+	* gcc.target/s390/hotpatch-27.c: New file.
+	* gcc.target/s390/hotpatch-28.c: New file.
+	* gcc.target/s390/s390.exp: Run hotpatch-*.c tests as torture tests
+	using -Os -O0 -O1 -O2 -O3 options.
+
+2015-03-31  Dominik Vogt  <vogt@linux.vnet.ibm.com>
+
+	* config/s390/s390.c (s390_function_num_hotpatch_hw): Allow hotpatching
+	nested functions.
+	(s390_reorg): Adapt to new signature of s390_function_num_hotpatch_hw.
+	(s390_asm_output_function_label): Adapt to new signature of
+	s390_function_num_hotpatch_hw
+	Optimise the code generating assembler output.
+	Add comments to assembler file.
+
+	* gcc.target/s390/hotpatch-25.c: New test.
+	* gcc.target/s390/hotpatch-1.c: Update test.
+	* gcc.target/s390/hotpatch-10.c: Update test.
+	* gcc.target/s390/hotpatch-11.c: Update test.
+	* gcc.target/s390/hotpatch-12.c: Update test.
+	* gcc.target/s390/hotpatch-13.c: Update test.
+	* gcc.target/s390/hotpatch-14.c: Update test.
+	* gcc.target/s390/hotpatch-15.c: Update test.
+	* gcc.target/s390/hotpatch-16.c: Update test.
+	* gcc.target/s390/hotpatch-17.c: Update test.
+	* gcc.target/s390/hotpatch-18.c: Update test.
+	* gcc.target/s390/hotpatch-19.c: Update test.
+	* gcc.target/s390/hotpatch-2.c: Update test.
+	* gcc.target/s390/hotpatch-21.c: Update test.
+	* gcc.target/s390/hotpatch-22.c: Update test.
+	* gcc.target/s390/hotpatch-23.c: Update test.
+	* gcc.target/s390/hotpatch-24.c: Update test.
+	* gcc.target/s390/hotpatch-3.c: Update test.
+	* gcc.target/s390/hotpatch-4.c: Update test.
+	* gcc.target/s390/hotpatch-5.c: Update test.
+	* gcc.target/s390/hotpatch-6.c: Update test.
+	* gcc.target/s390/hotpatch-7.c: Update test.
+	* gcc.target/s390/hotpatch-8.c: Update test.
+	* gcc.target/s390/hotpatch-9.c: Update test.
+	* gcc.target/s390/hotpatch-compile-16.c: Update test.
+
+2015-03-12  Dominik Vogt  <vogt@linux.vnet.ibm.com>
+
+	* config/s390/s390.c (s390_reorg): Move code to output nops after label
+	to s390_reorg ().
+	(s390_asm_output_function_label): Likewise.
+	* config/s390/s390.c (s390_asm_output_function_label):
+	Fix function label alignment with -mhtopatch.
+	* config/s390/s390.md ("unspecv"): New values UNSPECV_NOP_2_BYTE,
+	UNSPECV_NOP_4_BYTE and UNSPECV_NOP_6_BYTE
+	("nop_2_byte"): New define_insn.
+	("nop_4_byte"): Likewise.
+	("nop_6_byte"): Likewise.
+	* doc/extend.texi (hotpatch): hotpatch attribute doc fixes.
+	* doc/invoke.texi (-mhotpatch): -mhotpatch doc fixes.
+
+	* gcc.target/s390/hotpatch-21.c: New test for hotpatch alignment.
+	* gcc.target/s390/hotpatch-22.c: Likewise.
+	* gcc.target/s390/hotpatch-23.c: Likewise.
+	* gcc.target/s390/hotpatch-24.c: Likewise.
+	* gcc.target/s390/hotpatch-2.c: Also check hotpatch alignment.
+	* gcc.target/s390/hotpatch-1.c: Update expected output.
+	* gcc.target/s390/hotpatch-2.c: Likewise.
+	* gcc.target/s390/hotpatch-3.c: Likewise.
+	* gcc.target/s390/hotpatch-4.c: Likewise.
+	* gcc.target/s390/hotpatch-5.c: Likewise.
+	* gcc.target/s390/hotpatch-6.c: Likewise.
+	* gcc.target/s390/hotpatch-7.c: Likewise.
+	* gcc.target/s390/hotpatch-8.c: Likewise.
+	* gcc.target/s390/hotpatch-9.c: Likewise.
+	* gcc.target/s390/hotpatch-10.c: Likewise.
+	* gcc.target/s390/hotpatch-11.c: Likewise.
+	* gcc.target/s390/hotpatch-12.c: Likewise.
+	* gcc.target/s390/hotpatch-13.c: Likewise.
+	* gcc.target/s390/hotpatch-14.c: Likewise.
+	* gcc.target/s390/hotpatch-15.c: Likewise.
+	* gcc.target/s390/hotpatch-16.c: Likewise.
+	* gcc.target/s390/hotpatch-17.c: Likewise.
+	* gcc.target/s390/hotpatch-18.c: Likewise.
+	* gcc.target/s390/hotpatch-19.c: Likewise.
+
+2015-02-27  Andreas Krebbel  <Andreas.Krebbel@de.ibm.com>
+
+	* gcc.target/s390/hotpatch-8.c: Likewise.
+	* gcc.target/s390/hotpatch-9.c: Likewise.
+
+2015-02-23  Andreas Krebbel  <Andreas.Krebbel@de.ibm.com>
+
+	* gcc.target/s390/hotpatch-1.c: Remove --save-temps option.
+	* gcc.target/s390/hotpatch-10.c: Remove --save-temps option.
+	* gcc.target/s390/hotpatch-11.c: Remove --save-temps option.
+	* gcc.target/s390/hotpatch-12.c: Remove --save-temps option.
+	* gcc.target/s390/hotpatch-13.c: Remove --save-temps option.
+	* gcc.target/s390/hotpatch-14.c: Remove --save-temps option.
+	* gcc.target/s390/hotpatch-15.c: Remove --save-temps option.
+	* gcc.target/s390/hotpatch-16.c: Remove --save-temps option.
+	* gcc.target/s390/hotpatch-17.c: Remove --save-temps option.
+	* gcc.target/s390/hotpatch-18.c: Remove --save-temps option.
+	* gcc.target/s390/hotpatch-19.c: Remove --save-temps option.
+	* gcc.target/s390/hotpatch-2.c: Remove --save-temps option.
+	* gcc.target/s390/hotpatch-20.c: Remove --save-temps option.
+	* gcc.target/s390/hotpatch-3.c: Remove --save-temps option.
+	* gcc.target/s390/hotpatch-4.c: Remove --save-temps option.
+	* gcc.target/s390/hotpatch-5.c: Remove --save-temps option.
+	* gcc.target/s390/hotpatch-6.c: Remove --save-temps option.
+	* gcc.target/s390/hotpatch-7.c: Remove --save-temps option.
+	* gcc.target/s390/hotpatch-8.c: Remove --save-temps option.
+	* gcc.target/s390/hotpatch-9.c: Remove --save-temps option.
+	* gcc.target/s390/htm-nofloat-1.c: Cleanup --save-temps files.
+
+	* gcc.target/s390/hotpatch-8.c: Add -march=g5.
+	* gcc.target/s390/hotpatch-9.c: Add -march=g5.
+	* gcc.target/s390/hotpatch-compile-1.c: Fix error message.
+	* gcc.target/s390/hotpatch-compile-10.c: Likewise.
+	* gcc.target/s390/hotpatch-compile-11.c: Likewise.
+	* gcc.target/s390/hotpatch-compile-12.c: Likewise.
+	* gcc.target/s390/hotpatch-compile-13.c: Likewise.
+	* gcc.target/s390/hotpatch-compile-14.c: Likewise.
+	* gcc.target/s390/hotpatch-compile-2.c: Likewise.
+	* gcc.target/s390/hotpatch-compile-3.c: Likewise.
+	* gcc.target/s390/hotpatch-compile-4.c: Likewise.
+	* gcc.target/s390/hotpatch-compile-5.c: Likewise.
+	* gcc.target/s390/hotpatch-compile-6.c: Likewise.
+	* gcc.target/s390/hotpatch-compile-7.c: Likewise.
+	* gcc.target/s390/hotpatch-compile-8.c: Likewise.
+	* gcc.target/s390/hotpatch-compile-9.c: Likewise.
+
+2015-01-27  Dominik Vogt  <vogt@linux.vnet.ibm.com>
+
+        * doc/extend.texi: s/390: Update documentation of hotpatch attribute.
+        * doc/invoke.texi (-mhotpatch): s/390: Update documentation of
+        -mhotpatch= option.
+        * config/s390/s390.opt (mhotpatch): s/390: Remove -mhotpatch and
+        -mno-hotpatch options.  Change syntax of -mhotpatch= option.
+        * config/s390/s390.c (s390_hotpatch_trampoline_halfwords_default):
+        Renamed.
+        (s390_hotpatch_trampoline_halfwords_max): Renamed.
+        (s390_hotpatch_hw_max): New name.
+        (s390_hotpatch_trampoline_halfwords): Renamed.
+        (s390_hotpatch_hw_before_label): New name.
+        (get_hotpatch_attribute): Removed.
+        (s390_hotpatch_hw_after_label): New name.
+        (s390_handle_hotpatch_attribute): Add second parameter to hotpatch
+        attribute.
+        (s390_attribute_table): Ditto.
+        (s390_function_num_hotpatch_trampoline_halfwords): Renamed.
+        (s390_function_num_hotpatch_hw): New name.
+        Remove special handling of inline functions and hotpatching.
+        Return number of nops before and after the function label.
+        (s390_can_inline_p): Removed.
+        (s390_asm_output_function_label): Emit a configurable number of nops
+        after the function label.
+        (s390_option_override): Update -mhotpatch= syntax and remove -mhotpatch.
+        (TARGET_CAN_INLINE_P) Removed.
+        (TARGET_FUNCTION_ATTRIBUTE_INLINABLE_P): New.
+
+	* gcc/testsuite/gcc.target/s390/hotpatch-13.c: New testcase.
+	* gcc/testsuite/gcc.target/s390/hotpatch-14.c: New testcase.
+	* gcc/testsuite/gcc.target/s390/hotpatch-15.c: New testcase.
+	* gcc/testsuite/gcc.target/s390/hotpatch-16.c: New testcase.
+	* gcc/testsuite/gcc.target/s390/hotpatch-17.c: New testcase.
+	* gcc/testsuite/gcc.target/s390/hotpatch-18.c: New testcase.
+	* gcc/testsuite/gcc.target/s390/hotpatch-19.c: New testcase.
+	* gcc/testsuite/gcc.target/s390/hotpatch-20.c: New testcase.
+	* gcc/testsuite/gcc.target/s390/hotpatch-compile-10.c: New testcase.
+	* gcc/testsuite/gcc.target/s390/hotpatch-compile-11.c: New testcase.
+	* gcc/testsuite/gcc.target/s390/hotpatch-compile-12.c: New testcase.
+	* gcc/testsuite/gcc.target/s390/hotpatch-compile-13.c: New testcase.
+	* gcc/testsuite/gcc.target/s390/hotpatch-compile-14.c: New testcase.
+	* gcc/testsuite/gcc.target/s390/hotpatch-compile-15.c: New testcase.
+	* gcc/testsuite/gcc.target/s390/hotpatch-compile-16.c: New testcase.
+	* gcc/testsuite/gcc.target/s390/hotpatch-compile-9.c: New
+	testcase.
+	* gcc/testsuite/gcc.target/s390/hotpatch-1.c: Testcase adjusted to
+	new -mhotpatch.
+	* gcc/testsuite/gcc.target/s390/hotpatch-10.c: Likewise.
+	* gcc/testsuite/gcc.target/s390/hotpatch-11.c: Likewise.
+	* gcc/testsuite/gcc.target/s390/hotpatch-12.c: Likewise.
+	* gcc/testsuite/gcc.target/s390/hotpatch-2.c: Likewise.
+	* gcc/testsuite/gcc.target/s390/hotpatch-3.c: Likewise.
+	* gcc/testsuite/gcc.target/s390/hotpatch-4.c: Likewise.
+	* gcc/testsuite/gcc.target/s390/hotpatch-5.c: Likewise.
+	* gcc/testsuite/gcc.target/s390/hotpatch-6.c: Likewise.
+	* gcc/testsuite/gcc.target/s390/hotpatch-7.c: Likewise.
+	* gcc/testsuite/gcc.target/s390/hotpatch-8.c: Likewise.
+	* gcc/testsuite/gcc.target/s390/hotpatch-9.c: Likewise.
+	* gcc/testsuite/gcc.target/s390/hotpatch-compile-1.c: Likewise.
+	* gcc/testsuite/gcc.target/s390/hotpatch-compile-2.c: Likewise.
+	* gcc/testsuite/gcc.target/s390/hotpatch-compile-3.c: Likewise.
+	* gcc/testsuite/gcc.target/s390/hotpatch-compile-4.c: Likewise.
+	* gcc/testsuite/gcc.target/s390/hotpatch-compile-5.c: Likewise.
+	* gcc/testsuite/gcc.target/s390/hotpatch-compile-6.c: Likewise.
+	* gcc/testsuite/gcc.target/s390/hotpatch-compile-7.c: Likewise.
+	* gcc/testsuite/gcc.target/s390/hotpatch-compile-8.c: Likewise.
+
+2014-09-09  Nick Clifton  <nickc@redhat.com>
+
+	* doc/invoke.texi (S/390 and zSeries Options): Remove superfluous
+	word from the
+
+2014-02-13  Dominik Vogt  <vogt@linux.vnet.ibm.com>
+
+	* config/s390/s390.c (s390_asm_output_function_label): Fix crash
+	caused by bad second argument to warning_at() with -mhotpatch and
+	nested functions (e.g. with gfortran).
+
+2013-12-19  Dominik Vogt  <vogt@linux.vnet.ibm.com>
+	    Andreas Krebbel  <Andreas.Krebbel@de.ibm.com>
+
+	* config/s390/s390.c (s390_hotpatch_trampoline_halfwords_default): New
+	constant
+	(s390_hotpatch_trampoline_halfwords_max): New constant
+	(s390_hotpatch_trampoline_halfwords): New static variable
+	(get_hotpatch_attribute): New function
+	(s390_handle_hotpatch_attribute): New function
+	(s390_attribute_table): New target specific attribute table to implement
+	the hotpatch attribute
+	(s390_option_override): Parse hotpatch options
+	(s390_function_num_hotpatch_trampoline_halfwords): New function
+	(s390_can_inline_p): Implement target hook to
+	suppress hotpatching for explicitly inlined functions
+	(s390_asm_output_function_label): Generate hotpatch prologue
+	(TARGET_ATTRIBUTE_TABLE): Define to implement target attribute table
+	(TARGET_CAN_INLINE_P): Define to implement target hook
+	* config/s390/s390.opt (mhotpatch): New options -mhotpatch, -mhotpatch=
+	* config/s390/s390-protos.h (s390_asm_output_function_label): Add
+	prototype
+	* config/s390/s390.h (ASM_OUTPUT_FUNCTION_LABEL): Target specific
+	function label generation for hotpatching
+	(FUNCTION_BOUNDARY): Align functions to eight bytes
+	* doc/extend.texi: Document hotpatch attribute
+	* doc/invoke.texi: Document -mhotpatch option
+
+	* gcc/testsuite/gcc.target/s390/hotpatch-1.c: New test
+	* gcc/testsuite/gcc.target/s390/hotpatch-2.c: New test
+	* gcc/testsuite/gcc.target/s390/hotpatch-3.c: New test
+	* gcc/testsuite/gcc.target/s390/hotpatch-4.c: New test
+	* gcc/testsuite/gcc.target/s390/hotpatch-5.c: New test
+	* gcc/testsuite/gcc.target/s390/hotpatch-6.c: New test
+	* gcc/testsuite/gcc.target/s390/hotpatch-7.c: New test
+	* gcc/testsuite/gcc.target/s390/hotpatch-8.c: New test
+	* gcc/testsuite/gcc.target/s390/hotpatch-9.c: New test
+	* gcc/testsuite/gcc.target/s390/hotpatch-10.c: New test
+	* gcc/testsuite/gcc.target/s390/hotpatch-11.c: New test
+	* gcc/testsuite/gcc.target/s390/hotpatch-12.c: New test
+	* gcc/testsuite/gcc.target/s390/hotpatch-compile-1.c: New test
+	* gcc/testsuite/gcc.target/s390/hotpatch-compile-2.c: New test
+	* gcc/testsuite/gcc.target/s390/hotpatch-compile-3.c: New test
+	* gcc/testsuite/gcc.target/s390/hotpatch-compile-4.c: New test
+	* gcc/testsuite/gcc.target/s390/hotpatch-compile-5.c: New test
+	* gcc/testsuite/gcc.target/s390/hotpatch-compile-6.c: New test
+	* gcc/testsuite/gcc.target/s390/hotpatch-compile-7.c: New test
+
+--- gcc/config/s390/s390-protos.h.jj	2015-03-26 15:31:42.452623041 +0100
++++ gcc/config/s390/s390-protos.h	2015-03-26 16:25:08.308263197 +0100
+@@ -119,6 +119,7 @@ extern bool s390_legitimate_address_with
+ extern bool s390_decompose_shift_count (rtx, rtx *, HOST_WIDE_INT *);
+ extern int s390_branch_condition_mask (rtx);
+ extern int s390_compare_and_branch_condition_mask (rtx);
++extern void s390_asm_declare_function_name (FILE *, const char *, tree);
+ 
+ #endif /* RTX_CODE */
+ 
+--- gcc/config/s390/s390.c.jj	2015-03-26 15:31:42.500622260 +0100
++++ gcc/config/s390/s390.c	2015-05-29 19:01:39.211229395 +0200
+@@ -393,6 +393,63 @@ struct machine_function GTY(())
+    bytes on a z10 (or higher) CPU.  */
+ #define PREDICT_DISTANCE (TARGET_Z10 ? 384 : 2048)
+ 
++static const int s390_hotpatch_hw_max = 1000000;
++static int s390_hotpatch_hw_before_label = 0;
++static int s390_hotpatch_hw_after_label = 0;
++
++/* Check whether the hotpatch attribute is applied to a function and, if it has
++   an argument, the argument is valid.  */
++
++static tree
++s390_handle_hotpatch_attribute (tree *node, tree name, tree args,
++				int flags ATTRIBUTE_UNUSED, bool *no_add_attrs)
++{
++  tree expr;
++  tree expr2;
++  int err;
++
++  if (TREE_CODE (*node) != FUNCTION_DECL)
++    {
++      warning (OPT_Wattributes, "%qE attribute only applies to functions",
++	       name);
++      *no_add_attrs = true;
++    }
++  if (args != NULL && TREE_CHAIN (args) != NULL)
++    {
++      expr = TREE_VALUE (args);
++      expr2 = TREE_VALUE (TREE_CHAIN (args));
++    }
++  if (args == NULL || TREE_CHAIN (args) == NULL)
++    err = 1;
++  else if (TREE_CODE (expr) != INTEGER_CST
++	   || !INTEGRAL_TYPE_P (TREE_TYPE (expr))
++	   || TREE_INT_CST_HIGH (expr) != 0
++	   || TREE_INT_CST_LOW (expr) > (unsigned int) s390_hotpatch_hw_max)
++    err = 1;
++  else if (TREE_CODE (expr2) != INTEGER_CST
++	   || !INTEGRAL_TYPE_P (TREE_TYPE (expr2))
++	   || TREE_INT_CST_HIGH (expr2) != 0
++	   || TREE_INT_CST_LOW (expr2) > (unsigned int) s390_hotpatch_hw_max)
++    err = 1;
++  else
++    err = 0;
++  if (err)
++    {
++      error ("requested %qE attribute is not a comma separated pair of"
++	     " non-negative integer constants or too large (max. %d)", name,
++	     s390_hotpatch_hw_max);
++      *no_add_attrs = true;
++    }
++
++  return NULL_TREE;
++}
++
++static const struct attribute_spec s390_attribute_table[] = {
++  { "hotpatch", 2, 2, true, false, false, s390_handle_hotpatch_attribute },
++  /* End element.  */
++  { NULL,        0, 0, false, false, false, NULL }
++};
++
+ static enum machine_mode
+ s390_libgcc_cmp_return_mode (void)
+ {
+@@ -1557,6 +1614,22 @@ s390_handle_arch_option (const char *arg
+   return false;
+ }
+ 
++/* If ARG is a non-negative integer made up solely of digits, return its
++   value, otherwise return -1.  */
++static int
++s390_integral_argument (const char *arg)
++{
++  const char *p = arg;
++
++  while (*p && ISDIGIT (*p))
++    p++;
++
++  if (*p == '\0')
++    return atoi (arg);
++
++  return -1;
++}
++
+ /* Implement TARGET_HANDLE_OPTION.  */
+ 
+ static bool
+@@ -1587,6 +1660,46 @@ s390_handle_option (size_t code, const c
+     case OPT_mwarn_framesize_:
+       return sscanf (arg, HOST_WIDE_INT_PRINT_DEC, &s390_warn_framesize) == 1;
+ 
++    case OPT_mhotpatch_:
++      {
++	int val1;
++	int val2;
++	char s[256];
++	char *t;
++
++	strncpy (s, arg, 256);
++	s[255] = 0;
++	t = strchr (s, ',');
++	if (t != NULL)
++	  {
++	    *t = 0;
++	    t++;
++	    val1 = s390_integral_argument (s);
++	    val2 = s390_integral_argument (t);
++	  }
++	else
++	  {
++	    val1 = -1;
++	    val2 = -1;
++	  }
++	if (val1 == -1 || val2 == -1)
++	  {
++	    /* argument is not a plain number */
++	    error ("arguments to %qs should be non-negative integers",
++		   "-mhotpatch=n,m");
++	    return true;
++	  }
++	else if (val1 > s390_hotpatch_hw_max || val2 > s390_hotpatch_hw_max)
++	  {
++	    error ("argument to %qs is too large (max. %d)",
++		   "-mhotpatch=n,m", s390_hotpatch_hw_max);
++	    return true;
++	  }
++	s390_hotpatch_hw_before_label = val1;
++	s390_hotpatch_hw_after_label = val2;
++	return true;
++      }
++
+     default:
+       return true;
+     }
+@@ -4995,6 +5108,88 @@ get_some_local_dynamic_name (void)
+   gcc_unreachable ();
+ }
+ 
++/* Assigns the number of NOP halfwords to be emitted before and after the
++   function label to *HW_BEFORE and *HW_AFTER.  Both pointers must not be NULL.
++   If hotpatching is disabled for the function, the values are set to zero.
++*/
++
++static void
++s390_function_num_hotpatch_hw (tree decl,
++			       int *hw_before,
++			       int *hw_after)
++{
++  tree attr;
++
++  attr = lookup_attribute ("hotpatch", DECL_ATTRIBUTES (decl));
++
++  /* Handle the arguments of the hotpatch attribute.  The values
++     specified via attribute might override the cmdline argument
++     values.  */
++  if (attr)
++    {
++      tree args = TREE_VALUE (attr);
++
++      *hw_before = TREE_INT_CST_LOW (TREE_VALUE (args));
++      *hw_after = TREE_INT_CST_LOW (TREE_VALUE (TREE_CHAIN (args)));
++    }
++  else
++    {
++      /* Use the values specified by the cmdline arguments.  */
++      *hw_before = s390_hotpatch_hw_before_label;
++      *hw_after = s390_hotpatch_hw_after_label;
++    }
++}
++
++/* Write the extra assembler code needed to declare a function properly.  */
++
++void
++s390_asm_declare_function_name (FILE *asm_out_file, const char *fname,
++				tree decl)
++{
++  int hw_before, hw_after;
++
++  s390_function_num_hotpatch_hw (decl, &hw_before, &hw_after);
++  if (hw_before > 0)
++    {
++      unsigned int function_alignment;
++      int i;
++
++      /* Add a trampoline code area before the function label and initialize it
++	 with two-byte nop instructions.  This area can be overwritten with code
++	 that jumps to a patched version of the function.  */
++      asm_fprintf (asm_out_file, "\tnopr\t%%r7"
++		   "\t# pre-label NOPs for hotpatch (%d halfwords)\n",
++		   hw_before);
++      for (i = 1; i < hw_before; i++)
++	fputs ("\tnopr\t%r7\n", asm_out_file);
++
++      /* Note:  The function label must be aligned so that (a) the bytes of the
++	 following nop do not cross a cacheline boundary, and (b) a jump address
++	 (eight bytes for 64 bit targets, 4 bytes for 32 bit targets) can be
++	 stored directly before the label without crossing a cacheline
++	 boundary.  All this is necessary to make sure the trampoline code can
++	 be changed atomically.
++	 This alignment is done automatically using the FOUNCTION_BOUNDARY, but
++	 if there are NOPs before the function label, the alignment is placed
++	 before them.  So it is necessary to duplicate the alignment after the
++	 NOPs.  */
++      function_alignment = MAX (8, DECL_ALIGN (decl) / BITS_PER_UNIT);
++      if (! DECL_USER_ALIGN (decl))
++	function_alignment = MAX (function_alignment,
++				  (unsigned int) align_functions);
++      fputs ("\t# alignment for hotpatch\n", asm_out_file);
++      ASM_OUTPUT_ALIGN (asm_out_file, floor_log2 (function_alignment));
++    }
++
++  ASM_OUTPUT_TYPE_DIRECTIVE (asm_out_file, fname, "function");
++  ASM_DECLARE_RESULT (asm_out_file, DECL_RESULT (decl));
++  ASM_OUTPUT_LABEL (asm_out_file, fname);
++  if (hw_after > 0)
++    asm_fprintf (asm_out_file,
++		 "\t# post-label NOPs for hotpatch (%d halfwords)\n",
++		 hw_after);
++}
++
+ /* Output machine-dependent UNSPECs occurring in address constant X
+    in assembler syntax to stdio stream FILE.  Returns true if the
+    constant X could be recognized, false otherwise.  */
+@@ -10033,6 +10228,7 @@ static void
+ s390_reorg (void)
+ {
+   bool pool_overflow = false;
++  int hw_before, hw_after;
+ 
+   /* Make sure all splits have been performed; splits after
+      machine_dependent_reorg might confuse insn length counts.  */
+@@ -10166,6 +10362,46 @@ s390_reorg (void)
+       if (insn_added_p)
+ 	shorten_branches (get_insns ());
+     }
++
++  s390_function_num_hotpatch_hw (current_function_decl, &hw_before, &hw_after);
++  if (hw_after > 0)
++    {
++      rtx insn;
++
++      /* Insert NOPs for hotpatching. */
++      for (insn = get_insns (); insn; insn = NEXT_INSN (insn))
++	/* Emit NOPs
++	    1. inside the area covered by debug information to allow setting
++	       breakpoints at the NOPs,
++	    2. before any insn which results in an asm instruction,
++	    3. before in-function labels to avoid jumping to the NOPs, for
++	       example as part of a loop,
++	    4. before any barrier in case the function is completely empty
++	       (__builtin_unreachable ()) and has neither internal labels nor
++	       active insns.
++	*/
++	if (active_insn_p (insn) || BARRIER_P (insn) || LABEL_P (insn))
++	  break;
++      /* Output a series of NOPs before the first active insn.  */
++      while (insn && hw_after > 0)
++	{
++	  if (hw_after >= 3 && TARGET_CPU_ZARCH)
++	    {
++	      emit_insn_before (gen_nop_6_byte (), insn);
++	      hw_after -= 3;
++	    }
++	  else if (hw_after >= 2)
++	    {
++	      emit_insn_before (gen_nop_4_byte (), insn);
++	      hw_after -= 2;
++	    }
++	  else
++	    {
++	      emit_insn_before (gen_nop_2_byte (), insn);
++	      hw_after -= 1;
++	    }
++	}
++    }
+ }
+ 
+ /* Return true if INSN is a fp load insn writing register REGNO.  */
+@@ -10470,6 +10706,12 @@ s390_loop_unroll_adjust (unsigned nunrol
+ #undef TARGET_LOOP_UNROLL_ADJUST
+ #define TARGET_LOOP_UNROLL_ADJUST s390_loop_unroll_adjust
+ 
++#undef TARGET_ATTRIBUTE_TABLE
++#define TARGET_ATTRIBUTE_TABLE s390_attribute_table
++
++#undef TARGET_FUNCTION_ATTRIBUTE_INLINABLE_P
++#define TARGET_FUNCTION_ATTRIBUTE_INLINABLE_P hook_bool_const_tree_true
++
+ struct gcc_target targetm = TARGET_INITIALIZER;
+ 
+ #include "gt-s390.h"
+--- gcc/config/s390/s390.h.jj	2015-03-26 15:31:42.522621902 +0100
++++ gcc/config/s390/s390.h	2015-03-26 16:25:08.311263148 +0100
+@@ -992,6 +992,9 @@ do {									\
+   fputc ('\n', (FILE));							\
+ } while (0)
+ 
++#undef ASM_DECLARE_FUNCTION_NAME
++#define ASM_DECLARE_FUNCTION_NAME(FILE, NAME, DECL) \
++  s390_asm_declare_function_name (FILE, NAME, DECL)
+ 
+ /* Miscellaneous parameters.  */
+ 
+--- gcc/config/s390/s390.md.jj	2014-05-15 12:37:42.671166637 +0200
++++ gcc/config/s390/s390.md	2015-03-26 16:51:39.448482853 +0100
+@@ -138,6 +138,11 @@ (define_constants
+    ; Atomic Support
+    (UNSPECV_CAS			700)
+    (UNSPECV_ATOMIC_OP           701)
++
++   ; Hotpatching (unremovable NOPs)
++   (UNSPECV_NOP_2_BYTE		800)
++   (UNSPECV_NOP_4_BYTE		801)
++   (UNSPECV_NOP_6_BYTE		802)
+   ])
+ 
+ ;;
+@@ -8813,6 +8818,26 @@ (define_insn "nop1"
+   "lr\t1,1"
+   [(set_attr "op_type" "RR")])
+ 
++;;- Undeletable nops (used for hotpatching)
++
++(define_insn "nop_2_byte"
++  [(unspec_volatile [(const_int 0)] UNSPECV_NOP_2_BYTE)]
++  ""
++  "nopr\t%%r7"
++  [(set_attr "op_type" "RR")])
++
++(define_insn "nop_4_byte"
++  [(unspec_volatile [(const_int 0)] UNSPECV_NOP_4_BYTE)]
++  ""
++  "nop\t0"
++  [(set_attr "op_type" "RX")])
++
++(define_insn "nop_6_byte"
++  [(unspec_volatile [(const_int 0)] UNSPECV_NOP_6_BYTE)]
++  "TARGET_CPU_ZARCH"
++  "brcl\t0, 0"
++  [(set_attr "op_type" "RIL")])
++
+ 
+ ;
+ ; Special literal pool access instruction pattern(s).
+--- gcc/config/s390/s390.opt.jj	2015-03-26 15:31:42.685619252 +0100
++++ gcc/config/s390/s390.opt	2015-03-26 16:25:08.312263132 +0100
+@@ -54,6 +54,16 @@ mhard-float
+ Target Report RejectNegative Negative(msoft-float) InverseMask(SOFT_FLOAT, HARD_FLOAT)
+ Enable hardware floating point
+ 
++mhotpatch=
++Target RejectNegative Report Joined Var(s390_hotpatch_string)
++Takes two non-negative integer numbers separated by a comma.
++Prepend the function label with the number of two-byte Nop
++instructions indicated by the first.  Append Nop instructions
++covering the number of halfwords indicated by the second after the
++label.  Nop instructions of the largest possible size are used
++(six, four or two bytes), beginning with the largest possible
++size.  Using 0 for both values disables hotpatching.
++
+ mlong-double-128
+ Target Report RejectNegative Negative(mlong-double-64) Mask(LONG_DOUBLE_128)
+ Use 128-bit long double
+--- gcc/doc/extend.texi.jj	2015-03-26 15:31:42.406623789 +0100
++++ gcc/doc/extend.texi	2015-03-26 16:25:08.316263067 +0100
+@@ -2395,6 +2395,20 @@ then be sure to write this declaration i
+ 
+ This attribute is ignored for R8C target.
+ 
++@item hotpatch (@var{halfwords-before-function-label},@var{halfwords-after-function-label})
++@cindex @code{hotpatch} attribute
++
++On S/390 System z targets, you can use this function attribute to
++make GCC generate a ``hot-patching'' function prologue.  If the
++@option{-mhotpatch=} command-line option is used at the same time,
++the @code{hotpatch} attribute takes precedence.  The first of the
++two arguments specifies the number of halfwords to be added before
++the function label.  A second argument can be used to specify the
++number of halfwords to be added after the function label.  For
++both arguments the maximum allowed value is 1000000.
++
++If both arguments are zero, hotpatching is disabled.
++
+ @item interrupt
+ @cindex interrupt handler functions
+ Use this attribute on the ARM, AVR, CRX, M32C, M32R/D, m68k,
+--- gcc/doc/invoke.texi.jj	2015-03-26 15:31:42.371624358 +0100
++++ gcc/doc/invoke.texi	2015-03-26 16:32:09.561432439 +0100
+@@ -768,7 +768,8 @@ See RS/6000 and PowerPC Options.
+ -msmall-exec  -mno-small-exec  -mmvcle -mno-mvcle @gol
+ -m64  -m31  -mdebug  -mno-debug  -mesa  -mzarch @gol
+ -mtpf-trace -mno-tpf-trace  -mfused-madd  -mno-fused-madd @gol
+--mwarn-framesize  -mwarn-dynamicstack  -mstack-size -mstack-guard}
++-mwarn-framesize  -mwarn-dynamicstack  -mstack-size -mstack-guard @gol
++-mhotpatch=@var{halfwords},@var{halfwords}}
+ 
+ @emph{Score Options}
+ @gccoptlist{-meb -mel @gol
+@@ -14889,6 +14890,21 @@ values have to be exact powers of 2 and
+ In order to be efficient the extra code makes the assumption that the stack starts
+ at an address aligned to the value given by @var{stack-size}.
+ The @var{stack-guard} option can only be used in conjunction with @var{stack-size}.
++
++@item -mhotpatch=@var{pre-halfwords},@var{post-halfwords}
++@opindex mhotpatch
++If the hotpatch option is enabled, a ``hot-patching'' function
++prologue is generated for all functions in the compilation unit.
++The funtion label is prepended with the given number of two-byte
++NOP instructions (@var{pre-halfwords}, maximum 1000000).  After
++the label, 2 * @var{post-halfwords} bytes are appended, using the
++largest NOP like instructions the architecture allows (maximum
++1000000).
++
++If both arguments are zero, hotpatching is disabled.
++
++This option can be overridden for individual functions with the
++@code{hotpatch} attribute.
+ @end table
+ 
+ @node Score Options
+--- gcc/testsuite/gcc.target/s390/hotpatch-1.c.jj	2015-03-26 16:25:08.321262986 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-1.c	2015-05-29 19:01:39.202229533 +0200
+@@ -0,0 +1,19 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-mzarch" } */
++
++#include <stdio.h>
++
++void hp1(void)
++{
++  printf("hello, world!\n");
++}
++
++/* Check number of occurences of certain instructions.  */
++/* { dg-final { scan-assembler-not "pre-label NOPs" } } */
++/* { dg-final { scan-assembler-not "post-label NOPs" } } */
++/* { dg-final { scan-assembler-not "nopr\t%r7" } } */
++/* { dg-final { scan-assembler-not "nop\t0" } } */
++/* { dg-final { scan-assembler-not "brcl\t0, 0" } } */
++/* { dg-final { scan-assembler-not "alignment for hotpatch" } } */
+--- gcc/testsuite/gcc.target/s390/hotpatch-10.c.jj	2015-03-26 16:25:08.321262986 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-10.c	2015-05-29 19:01:39.207229456 +0200
+@@ -0,0 +1,19 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-mzarch -mhotpatch=0,0" } */
++
++#include <stdio.h>
++
++void hp1(void)
++{
++  printf("hello, world!\n");
++}
++
++/* Check number of occurences of certain instructions.  */
++/* { dg-final { scan-assembler-not "pre-label NOPs" } } */
++/* { dg-final { scan-assembler-not "post-label NOPs" } } */
++/* { dg-final { scan-assembler-not "nopr\t%r7" } } */
++/* { dg-final { scan-assembler-not "nop\t0" } } */
++/* { dg-final { scan-assembler-not "brcl\t0, 0" } } */
++/* { dg-final { scan-assembler-not "alignment for hotpatch" } } */
+--- gcc/testsuite/gcc.target/s390/hotpatch-11.c.jj	2015-03-26 16:25:08.321262986 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-11.c	2015-05-29 19:01:39.204229502 +0200
+@@ -0,0 +1,18 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-mzarch -mhotpatch=1,0" } */
++
++#include <stdio.h>
++
++void hp1(void)
++{
++  printf("hello, world!\n");
++}
++
++/* Check number of occurences of certain instructions.  */
++/* { dg-final { scan-assembler "pre-label.*(1 halfwords)" } } */
++/* { dg-final { scan-assembler-not "post-label NOPs" } } */
++/* { dg-final { scan-assembler-times "nopr\t%r7" 1 } } */
++/* { dg-final { scan-assembler-not "nop\t0" } } */
++/* { dg-final { scan-assembler-not "brcl\t0, 0" } } */
+--- gcc/testsuite/gcc.target/s390/hotpatch-12.c.jj	2015-03-26 16:25:08.321262986 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-12.c	2015-05-29 19:01:39.208229441 +0200
+@@ -0,0 +1,18 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-mzarch -mhotpatch=999,0" } */
++
++#include <stdio.h>
++
++void hp1(void)
++{
++  printf("hello, world!\n");
++}
++
++/* Check number of occurences of certain instructions.  */
++/* { dg-final { scan-assembler "pre-label.*(999 halfwords)" } } */
++/* { dg-final { scan-assembler-not "post-label NOPs" } } */
++/* { dg-final { scan-assembler-times "nopr\t%r7" 999 } } */
++/* { dg-final { scan-assembler-not "nop\t0" } } */
++/* { dg-final { scan-assembler-not "brcl\t0, 0" } } */
+--- gcc/testsuite/gcc.target/s390/hotpatch-13.c.jj	2015-03-26 16:25:08.321262986 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-13.c	2015-05-29 19:01:39.204229502 +0200
+@@ -0,0 +1,20 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-mzarch" } */
++
++#include <stdio.h>
++
++__attribute__ ((hotpatch(1,0)))
++void hp1(void)
++{
++  printf("hello, world!\n");
++}
++
++/* Check number of occurences of certain instructions.  */
++/* { dg-final { scan-assembler "pre-label.*(1 halfwords)" } } */
++/* { dg-final { scan-assembler-not "post-label NOPs" } } */
++/* { dg-final { scan-assembler-times "nopr\t%r7" 1 } } */
++/* { dg-final { scan-assembler-not "nop\t0" } } */
++/* { dg-final { scan-assembler-not "brcl\t0, 0" } } */
++/* { dg-final { scan-assembler "alignment for hotpatch" } } */
+--- gcc/testsuite/gcc.target/s390/hotpatch-14.c.jj	2015-03-26 16:25:08.322262970 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-14.c	2015-05-29 19:01:39.208229441 +0200
+@@ -0,0 +1,20 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-mzarch" } */
++
++#include <stdio.h>
++
++__attribute__ ((hotpatch(0,2)))
++void hp1(void)
++{
++  printf("hello, world!\n");
++}
++
++/* Check number of occurences of certain instructions.  */
++/* { dg-final { scan-assembler-not "pre-label NOPs" } } */
++/* { dg-final { scan-assembler "^\[^.\].*:\n.*post-label.*(2 halfwords).*\n\(\(.L.*:\n\)\|\(\[\[:space:\]\]*.cfi_.*\n\)\)*\[\[:space:\]\]*nop\t0" } } */
++/* { dg-final { scan-assembler-not "nopr\t%r7" } } */
++/* { dg-final { scan-assembler-times "nop\t0" 1 } } */
++/* { dg-final { scan-assembler-not "brcl\t0, 0" } } */
++/* { dg-final { scan-assembler-not "alignment for hotpatch" } } */
+--- gcc/testsuite/gcc.target/s390/hotpatch-15.c.jj	2015-03-26 16:25:08.322262970 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-15.c	2015-05-29 19:01:39.204229502 +0200
+@@ -0,0 +1,19 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-mzarch" } */
++
++#include <stdio.h>
++
++__attribute__ ((hotpatch(1,2)))
++void hp1(void)
++{
++  printf("hello, world!\n");
++}
++
++/* Check number of occurences of certain instructions.  */
++/* { dg-final { scan-assembler "pre-label.*(1 halfwords)" } } */
++/* { dg-final { scan-assembler "^\[^.\].*:\n.*post-label.*(2 halfwords).*\n\(\(.L.*:\n\)\|\(\[\[:space:\]\]*.cfi_.*\n\)\)*\[\[:space:\]\]*nop\t0" } } */
++/* { dg-final { scan-assembler-times "nopr\t%r7" 1 } } */
++/* { dg-final { scan-assembler-times "nop\t0" 1 } } */
++/* { dg-final { scan-assembler-not "brcl\t0, 0" } } */
+--- gcc/testsuite/gcc.target/s390/hotpatch-16.c.jj	2015-03-26 16:25:08.322262970 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-16.c	2015-05-29 19:01:38.781235985 +0200
+@@ -0,0 +1,19 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-mzarch -mhotpatch=0,0" } */
++
++#include <stdio.h>
++
++__attribute__ ((hotpatch(1,2)))
++void hp1(void)
++{
++  printf("hello, world!\n");
++}
++
++/* Check number of occurences of certain instructions.  */
++/* { dg-final { scan-assembler "pre-label.*(1 halfwords)" } } */
++/* { dg-final { scan-assembler "^\[^.\].*:\n.*post-label.*(2 halfwords).*\n\(\(.L.*:\n\)\|\(\[\[:space:\]\]*.cfi_.*\n\)\)*\[\[:space:\]\]*nop\t0" } } */
++/* { dg-final { scan-assembler-times "nopr\t%r7" 1 } } */
++/* { dg-final { scan-assembler-times "nop\t0" 1 } } */
++/* { dg-final { scan-assembler-not "brcl\t0, 0" } } */
+--- gcc/testsuite/gcc.target/s390/hotpatch-17.c.jj	2015-03-26 16:25:08.322262970 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-17.c	2015-05-29 19:01:39.205229487 +0200
+@@ -0,0 +1,20 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-mzarch -mhotpatch=1,2" } */
++
++#include <stdio.h>
++
++__attribute__ ((hotpatch(0,0)))
++void hp1(void)
++{
++  printf("hello, world!\n");
++}
++
++/* Check number of occurences of certain instructions.  */
++/* { dg-final { scan-assembler-not "pre-label NOPs" } } */
++/* { dg-final { scan-assembler-not "post-label NOPs" } } */
++/* { dg-final { scan-assembler-not "nopr\t%r7" } } */
++/* { dg-final { scan-assembler-not "nop\t0" } } */
++/* { dg-final { scan-assembler-not "brcl\t0, 0" } } */
++/* { dg-final { scan-assembler-not "alignment for hotpatch" } } */
+--- gcc/testsuite/gcc.target/s390/hotpatch-18.c.jj	2015-03-26 16:25:08.323262954 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-18.c	2015-05-29 19:01:38.782235970 +0200
+@@ -0,0 +1,19 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-mzarch -mhotpatch=1,2 -mhotpatch=0,0" } */
++
++#include <stdio.h>
++
++void hp1(void)
++{
++  printf("hello, world!\n");
++}
++
++/* Check number of occurences of certain instructions.  */
++/* { dg-final { scan-assembler-not "pre-label NOPs" } } */
++/* { dg-final { scan-assembler-not "post-label NOPs" } } */
++/* { dg-final { scan-assembler-not "nopr\t%r7" } } */
++/* { dg-final { scan-assembler-not "nop\t0" } } */
++/* { dg-final { scan-assembler-not "brcl\t0, 0" } } */
++/* { dg-final { scan-assembler-not "alignment for hotpatch" } } */
+--- gcc/testsuite/gcc.target/s390/hotpatch-19.c.jj	2015-03-26 16:25:08.323262954 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-19.c	2015-06-01 13:10:09.554981201 +0200
+@@ -0,0 +1,24 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-mzarch -mhotpatch=1,2" } */
++
++#include <stdio.h>
++
++__attribute__ ((always_inline))
++static inline void hp2(void)
++{
++  printf("hello, world!\n");
++}
++
++void hp1(void)
++{
++  hp2();
++}
++
++/* Check number of occurences of certain instructions.  */
++/* { dg-final { scan-assembler "pre-label.*(1 halfwords)" } } */
++/* { dg-final { scan-assembler "^\[^.\].*:\n.*post-label.*(2 halfwords).*\n\(\(.L.*:\n\)\|\(\[\[:space:\]\]*.cfi_.*\n\)\)*\[\[:space:\]\]*nop\t0" } } */
++/* { dg-final { scan-assembler-times "nopr\t%r7" 1 } } */
++/* { dg-final { scan-assembler-times "nop\t0" 1 } } */
++/* { dg-final { scan-assembler-not "brcl\t0, 0" } } */
+--- gcc/testsuite/gcc.target/s390/hotpatch-2.c.jj	2015-03-26 16:25:08.323262954 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-2.c	2015-05-29 19:01:39.206229472 +0200
+@@ -0,0 +1,19 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-mzarch -mhotpatch=0,1" } */
++
++#include <stdio.h>
++
++void hp1(void)
++{
++  printf("hello, world!\n");
++}
++
++/* Check number of occurences of certain instructions.  */
++/* { dg-final { scan-assembler-not "pre-label NOPs" } } */
++/* { dg-final { scan-assembler "^\[^.\].*:\n.*post-label.*(1 halfwords).*\n\(\(.L.*:\n\)\|\(\[\[:space:\]\]*.cfi_.*\n\)\)*\[\[:space:\]\]*nopr\t" } } */
++/* { dg-final { scan-assembler-times "nopr\t%r7" 1 } } */
++/* { dg-final { scan-assembler-not "nop\t0" } } */
++/* { dg-final { scan-assembler-not "brcl\t0, 0" } } */
++/* { dg-final { scan-assembler-not "alignment for hotpatch" } } */
+--- gcc/testsuite/gcc.target/s390/hotpatch-20.c.jj	2015-03-26 16:25:08.323262954 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-20.c	2015-06-01 13:10:09.555981186 +0200
+@@ -0,0 +1,18 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-mzarch" } */
++
++#include <stdio.h>
++
++__attribute__ ((hotpatch(1,2)))
++__attribute__ ((always_inline))
++static inline void hp2(void)
++{
++  printf("hello, world!\n");
++}
++
++void hp1(void)
++{
++  hp2();
++}
+--- gcc/testsuite/gcc.target/s390/hotpatch-21.c.jj	2015-03-26 16:32:09.590431968 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-21.c	2015-05-29 19:01:39.201229548 +0200
+@@ -0,0 +1,14 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-mzarch -mhotpatch=0,1" } */
++
++#include <stdio.h>
++
++void __attribute__ ((aligned(512))) hp1(void)
++{
++  printf("hello, world!\n");
++}
++
++/* Check number of occurences of certain instructions.  */
++/* { dg-final { scan-assembler-not "alignment for hotpatch" } } */
+--- gcc/testsuite/gcc.target/s390/hotpatch-22.c.jj	2015-03-26 16:32:09.594431904 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-22.c	2015-05-29 19:01:39.205229487 +0200
+@@ -0,0 +1,14 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-mzarch -mhotpatch=0,1 -falign-functions=1024" } */
++
++#include <stdio.h>
++
++void hp1(void)
++{
++  printf("hello, world!\n");
++}
++
++/* Check number of occurences of certain instructions.  */
++/* { dg-final { scan-assembler-not "alignment for hotpatch" } } */
+--- gcc/testsuite/gcc.target/s390/hotpatch-23.c.jj	2015-03-26 16:32:09.591431952 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-23.c	2015-05-29 19:01:39.202229533 +0200
+@@ -0,0 +1,14 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-mzarch -mhotpatch=0,1 -falign-functions=4096" } */
++
++#include <stdio.h>
++
++void __attribute__ ((aligned(2048))) hp1(void)
++{
++  printf("hello, world!\n");
++}
++
++/* Check number of occurences of certain instructions.  */
++/* { dg-final { scan-assembler-not "alignment for hotpatch" } } */
+--- gcc/testsuite/gcc.target/s390/hotpatch-24.c.jj	2015-03-26 16:32:09.594431904 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-24.c	2015-05-29 19:01:39.206229472 +0200
+@@ -0,0 +1,14 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-mzarch -mhotpatch=0,1 -falign-functions=2048" } */
++
++#include <stdio.h>
++
++void __attribute__ ((aligned(4096))) hp1(void)
++{
++  printf("hello, world!\n");
++}
++
++/* Check number of occurences of certain instructions.  */
++/* { dg-final { scan-assembler-not "alignment for hotpatch" } } */
+--- gcc/testsuite/gcc.target/s390/hotpatch-25.c.jj	2015-05-29 18:52:06.537006787 +0200
++++ gcc/testsuite/gcc.target/s390/hotpatch-25.c	2015-05-29 19:01:39.202229533 +0200
+@@ -0,0 +1,32 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-mzarch" } */
++
++typedef long (*fn_t)(void);
++
++__attribute__ ((hotpatch(1,2)))
++fn_t outer(void)
++{
++  __attribute__ ((hotpatch(4,8)))
++  long nested1(void)
++  {
++    __attribute__ ((hotpatch(16,32)))
++    long nested2(void)
++    {
++      return 2;
++    }
++    return (long)(void *)nested2;
++  }
++
++  return nested1;
++}
++
++/* { dg-final { scan-assembler "pre-label.*(1 halfwords)" } } */
++/* { dg-final { scan-assembler "pre-label.*(4 halfwords)" } } */
++/* { dg-final { scan-assembler "pre-label.*(16 halfwords)" } } */
++/* { dg-final { scan-assembler "^\[^.\].*:\n.*post-label.*(2 halfwords).*\n\(\(.L.*:\n\)\|\(\[\[:space:\]\]*.cfi_.*\n\)\)*\[\[:space:\]\]*nopr\t" } } */
++/* { dg-final { scan-assembler "^\[^.\].*:\n.*post-label.*(8 halfwords).*\n\(\(.L.*:\n\)\|\(\[\[:space:\]\]*.cfi_.*\n\)\)*\[\[:space:\]\]*brcl\t0, 0" } } */
++/* { dg-final { scan-assembler "^\[^.\].*:\n.*post-label.*(32 halfwords).*\n\(\(.L.*:\n\)\|\(\[\[:space:\]\]*.cfi_.*\n\)\)*\[\[:space:\]\]*brcl\t0, 0" } } */
++/* { dg-final { scan-assembler-times "alignment for hotpatch" 3 } } */
++/* { dg-final { scan-assembler "nopr.*\n.*nopr.*\n.*nopr.*\n.*nopr.*\n.*nopr.*\n.*nopr.*\n.*nopr.*\n.*nopr.*\n.*nopr.*\n.*nopr.*\n.*nopr.*\n.*nopr.*\n.*nopr.*\n.*nopr.*\n.*nopr.*\n.*nopr" } } */
+--- gcc/testsuite/gcc.target/s390/hotpatch-26.c.jj	2015-05-29 19:11:03.831575445 +0200
++++ gcc/testsuite/gcc.target/s390/hotpatch-26.c	2015-05-29 19:01:39.206229472 +0200
+@@ -0,0 +1,17 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-O3 -mzarch -mhotpatch=1,2" } */
++
++__attribute__ ((noreturn)) void hp1(void)
++{
++  __builtin_unreachable ();
++}
++
++/* Check number of occurences of certain instructions.  */
++/* { dg-final { scan-assembler "pre-label NOPs" } } */
++/* { dg-final { scan-assembler "^\[^.\].*:\n.*post-label.*(2 halfwords).*\n\(\(.L.*:\n\)\|\(\[\[:space:\]\]*.cfi_.*\n\)\)*\[\[:space:\]\]*nop\t0" } } */
++/* { dg-final { scan-assembler-times "nopr\t%r7" 1 } } */
++/* { dg-final { scan-assembler-times "nop\t0" 1 } } */
++/* { dg-final { scan-assembler-not "brcl\t0, 0" } } */
++/* { dg-final { scan-assembler "alignment for hotpatch" } } */
+--- gcc/testsuite/gcc.target/s390/hotpatch-27.c.jj	2015-05-29 19:11:03.831575445 +0200
++++ gcc/testsuite/gcc.target/s390/hotpatch-27.c	2015-05-29 19:01:39.202229533 +0200
+@@ -0,0 +1,17 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-O3 -mzarch -mhotpatch=1,2" } */
++
++__attribute__ ((noreturn)) void hp3(void)
++{
++  __builtin_unreachable ();
++}
++
++/* Check number of occurences of certain instructions.  */
++/* { dg-final { scan-assembler "pre-label NOPs" } } */
++/* { dg-final { scan-assembler "^\[^.\].*:\n.*post-label.*(2 halfwords).*\n\(\(.L.*:\n\)\|\(\[\[:space:\]\]*.cfi_.*\n\)\)*\[\[:space:\]\]*nop\t0" } } */
++/* { dg-final { scan-assembler-times "nopr\t%r7" 1 } } */
++/* { dg-final { scan-assembler-times "nop\t0" 1 } } */
++/* { dg-final { scan-assembler-not "brcl\t0, 0" } } */
++/* { dg-final { scan-assembler "alignment for hotpatch" } } */
+--- gcc/testsuite/gcc.target/s390/hotpatch-28.c.jj	2015-05-29 19:11:03.831575445 +0200
++++ gcc/testsuite/gcc.target/s390/hotpatch-28.c	2015-05-29 19:01:39.206229472 +0200
+@@ -0,0 +1,18 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-O3 -mzarch -mhotpatch=1,2" } */
++
++void hp1 (volatile unsigned int *i)
++{
++  for (;;)
++    (*i)++;
++}
++
++/* Check number of occurences of certain instructions.  */
++/* { dg-final { scan-assembler "pre-label NOPs" } } */
++/* { dg-final { scan-assembler "^\[^.\].*:\n.*post-label.*(2 halfwords).*\n\(\(.L.*:\n\)\|\(\[\[:space:\]\]*.cfi_.*\n\)\)*\[\[:space:\]\]*nop\t0" } } */
++/* { dg-final { scan-assembler-times "nopr\t%r7" 1 } } */
++/* { dg-final { scan-assembler-times "nop\t0" 1 } } */
++/* { dg-final { scan-assembler-not "brcl\t0, 0" } } */
++/* { dg-final { scan-assembler "alignment for hotpatch" } } */
+--- gcc/testsuite/gcc.target/s390/hotpatch-3.c.jj	2015-03-26 16:25:08.323262954 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-3.c	2015-05-29 19:01:39.203229518 +0200
+@@ -0,0 +1,18 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-mzarch -mhotpatch=0,2" } */
++
++#include <stdio.h>
++
++void hp1(void)
++{
++  printf("hello, world!\n");
++}
++
++/* Check number of occurences of certain instructions.  */
++/* { dg-final { scan-assembler-not "pre-label NOPs" } } */
++/* { dg-final { scan-assembler "^\[^.\].*:\n.*post-label.*(2 halfwords).*\n\(\(.L.*:\n\)\|\(\[\[:space:\]\]*.cfi_.*\n\)\)*\[\[:space:\]\]*nop\t0" } } */
++/* { dg-final { scan-assembler-not "nopr\t%r7" } } */
++/* { dg-final { scan-assembler-times "nop\t0" 1 } } */
++/* { dg-final { scan-assembler-not "brcl\t0, 0" } } */
+--- gcc/testsuite/gcc.target/s390/hotpatch-4.c.jj	2015-03-26 16:25:08.324262937 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-4.c	2015-05-29 19:01:39.207229456 +0200
+@@ -0,0 +1,18 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-mzarch -mhotpatch=0,3" } */
++
++#include <stdio.h>
++
++void hp1(void)
++{
++  printf("hello, world!\n");
++}
++
++/* Check number of occurences of certain instructions.  */
++/* { dg-final { scan-assembler-not "pre-label NOPs" } } */
++/* { dg-final { scan-assembler "^\[^.\].*:\n.*post-label.*(3 halfwords).*\n\(\(.L.*:\n\)\|\(\[\[:space:\]\]*.cfi_.*\n\)\)*\[\[:space:\]\]*brcl\t0, 0" } } */
++/* { dg-final { scan-assembler-not "nopr\t%r7" } } */
++/* { dg-final { scan-assembler-not "nop\t0" } } */
++/* { dg-final { scan-assembler-times "brcl\t0, 0" 1 } } */
+--- gcc/testsuite/gcc.target/s390/hotpatch-5.c.jj	2015-03-26 16:25:08.324262937 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-5.c	2015-05-29 19:01:39.203229518 +0200
+@@ -0,0 +1,18 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-mzarch -mhotpatch=0,4" } */
++
++#include <stdio.h>
++
++void hp1(void)
++{
++  printf("hello, world!\n");
++}
++
++/* Check number of occurences of certain instructions.  */
++/* { dg-final { scan-assembler-not "pre-label NOPs" } } */
++/* { dg-final { scan-assembler "^\[^.\].*:\n.*post-label.*(4 halfwords).*\n\(\(.L.*:\n\)\|\(\[\[:space:\]\]*.cfi_.*\n\)\)*\[\[:space:\]\]*brcl\t0, 0" } } */
++/* { dg-final { scan-assembler-times "nopr\t%r7" 1 } } */
++/* { dg-final { scan-assembler-not "nop\t0" } } */
++/* { dg-final { scan-assembler-times "brcl\t0, 0" 1 } } */
+--- gcc/testsuite/gcc.target/s390/hotpatch-6.c.jj	2015-03-26 16:25:08.324262937 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-6.c	2015-05-29 19:01:39.207229456 +0200
+@@ -0,0 +1,18 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-mzarch -mhotpatch=0,5" } */
++
++#include <stdio.h>
++
++void hp1(void)
++{
++  printf("hello, world!\n");
++}
++
++/* Check number of occurences of certain instructions.  */
++/* { dg-final { scan-assembler-not "pre-label NOPs" } } */
++/* { dg-final { scan-assembler "^\[^.\].*:\n.*post-label.*(5 halfwords).*\n\(\(.L.*:\n\)\|\(\[\[:space:\]\]*.cfi_.*\n\)\)*\[\[:space:\]\]*brcl\t0, 0" } } */
++/* { dg-final { scan-assembler-not "nopr\t%r7" } } */
++/* { dg-final { scan-assembler-times "nop\t0" 1 } } */
++/* { dg-final { scan-assembler-times "brcl\t0, 0" 1 } } */
+--- gcc/testsuite/gcc.target/s390/hotpatch-7.c.jj	2015-03-26 16:25:08.324262937 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-7.c	2015-05-29 19:01:39.203229518 +0200
+@@ -0,0 +1,18 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-mzarch -mhotpatch=0,6" } */
++
++#include <stdio.h>
++
++void hp1(void)
++{
++  printf("hello, world!\n");
++}
++
++/* Check number of occurences of certain instructions.  */
++/* { dg-final { scan-assembler-not "pre-label NOPs" } } */
++/* { dg-final { scan-assembler "^\[^.\].*:\n.*post-label.*(6 halfwords).*\n\(\(.L.*:\n\)\|\(\[\[:space:\]\]*.cfi_.*\n\)\)*\[\[:space:\]\]*brcl\t0, 0" } } */
++/* { dg-final { scan-assembler-not "nopr\t%r7" } } */
++/* { dg-final { scan-assembler-not "nop\t0" } } */
++/* { dg-final { scan-assembler-times "brcl\t0, 0" 2 } } */
+--- gcc/testsuite/gcc.target/s390/hotpatch-8.c.jj	2015-03-26 16:25:08.324262937 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-8.c	2015-05-29 19:01:39.207229456 +0200
+@@ -0,0 +1,19 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile { target { ! lp64 } } } */
++/* { dg-options "-mesa -march=g5 -mhotpatch=0,3" } */
++
++#include <stdio.h>
++
++void hp1(void)
++{
++  printf("hello, world!\n");
++}
++
++/* Check number of occurences of certain instructions.  */
++/* { dg-final { scan-assembler-not "pre-label NOPs" } } */
++/* { dg-final { scan-assembler "^\[^.\].*:\n.*post-label.*(3 halfwords).*\n\(\(.L.*:\n\)\|\(\[\[:space:\]\]*.cfi_.*\n\)\)*\[\[:space:\]\]*nop\t0" } } */
++/* { dg-final { scan-assembler-times "nopr\t%r7" 1 } } */
++/* { dg-final { scan-assembler-times "nop\t0" 1 } } */
++/* { dg-final { scan-assembler-not "brcl\t0, 0" } } */
++/* { dg-final { scan-assembler-not "alignment for hotpatch" } } */
+--- gcc/testsuite/gcc.target/s390/hotpatch-9.c.jj	2015-03-26 16:25:08.325262921 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-9.c	2015-05-29 19:01:39.203229518 +0200
+@@ -0,0 +1,18 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile { target { ! lp64 } } } */
++/* { dg-options "-mesa -march=g5 -mhotpatch=0,4" } */
++
++#include <stdio.h>
++
++void hp1(void)
++{
++  printf("hello, world!\n");
++}
++
++/* Check number of occurences of certain instructions.  */
++/* { dg-final { scan-assembler-not "pre-label NOPs" } } */
++/* { dg-final { scan-assembler "^\[^.\].*:\n.*post-label.*(4 halfwords).*\n\(\(.L.*:\n\)\|\(\[\[:space:\]\]*.cfi_.*\n\)\)*\[\[:space:\]\]*nop\t0" } } */
++/* { dg-final { scan-assembler-not "nopr\t%r7" } } */
++/* { dg-final { scan-assembler-times "nop\t0" 2 } } */
++/* { dg-final { scan-assembler-not "brcl\t0, 0" } } */
+--- gcc/testsuite/gcc.target/s390/hotpatch-compile-1.c.jj	2015-03-26 16:25:08.325262921 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-compile-1.c	2015-03-26 16:25:08.325262921 +0100
+@@ -0,0 +1,5 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-O3 -mzarch -mhotpatch=-1,0" } */
++/* { dg-error "arguments to .-mhotpatch=n,m. should be non-negative integers" "" { target *-*-* } 0 } */
+--- gcc/testsuite/gcc.target/s390/hotpatch-compile-10.c.jj	2015-03-26 16:25:08.325262921 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-compile-10.c	2015-03-26 16:25:08.325262921 +0100
+@@ -0,0 +1,10 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-O3 -mzarch" } */
++
++__attribute__((hotpatch(0,0,0)))
++int main (void)
++{/* { dg-error "wrong number of arguments specified" } */
++  return 0;
++}
+--- gcc/testsuite/gcc.target/s390/hotpatch-compile-11.c.jj	2015-03-26 16:25:08.325262921 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-compile-11.c	2015-03-26 16:25:08.325262921 +0100
+@@ -0,0 +1,12 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-O3 -mzarch" } */
++
++int a;
++
++__attribute__((hotpatch(a,0)))
++int main (void)
++{ /* { dg-error "attribute is not a comma separated pair of non-negative integer constants or too large" } */
++  return 0;
++}
+--- gcc/testsuite/gcc.target/s390/hotpatch-compile-12.c.jj	2015-03-26 16:25:08.326262905 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-compile-12.c	2015-03-26 16:25:08.326262905 +0100
+@@ -0,0 +1,12 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-O3 -mzarch" } */
++
++int a;
++
++__attribute__((hotpatch(0,a)))
++int main (void)
++{ /* { dg-error "attribute is not a comma separated pair of non-negative integer constants or too large" } */
++  return 0;
++}
+--- gcc/testsuite/gcc.target/s390/hotpatch-compile-13.c.jj	2015-03-26 16:25:08.326262905 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-compile-13.c	2015-03-26 16:25:08.326262905 +0100
+@@ -0,0 +1,29 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-O3 -mzarch -mhotpatch=1000000,1000000" } */
++
++#include <stdio.h>
++
++void hp1(void)
++{
++  printf("hello, world!\n");
++}
++
++__attribute__ ((hotpatch(1000000,1000000)))
++void hp2(void)
++{
++  printf("hello, world!\n");
++}
++
++__attribute__ ((hotpatch(1000001,1000000)))
++void hp3(void)
++{ /* { dg-error " requested .hotpatch. attribute is not a comma separated pair" } */
++  printf("hello, world!\n");
++}
++
++__attribute__ ((hotpatch(1000000,1000001)))
++void hp4(void)
++{ /* { dg-error " requested .hotpatch. attribute is not a comma separated pair" } */
++  printf("hello, world!\n");
++}
+--- gcc/testsuite/gcc.target/s390/hotpatch-compile-14.c.jj	2015-03-26 16:25:08.326262905 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-compile-14.c	2015-03-26 16:25:08.326262905 +0100
+@@ -0,0 +1,11 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-O3 -mzarch -mhotpatch=1000001,1000000" } */
++
++viod main(void)
++{
++  return 0;
++}
++
++/* { dg-error "argument to .-mhotpatch=n,m. is too large" "" { target *-*-* } 0 } */
+--- gcc/testsuite/gcc.target/s390/hotpatch-compile-15.c.jj	2015-03-26 16:25:08.326262905 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-compile-15.c	2015-06-01 13:10:09.554981201 +0200
+@@ -0,0 +1,40 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-O3 -mzarch" } */
++
++#include <stdio.h>
++
++__attribute__ ((hotpatch(1,2)))
++static void hp1(void)
++{
++  printf("hello, world!\n");
++}
++
++__attribute__ ((hotpatch(1,2)))
++static inline void hp2(void)
++{
++  printf("hello, world!\n");
++}
++
++__attribute__ ((hotpatch(0,0)))
++__attribute__ ((always_inline))
++static inline void hp3(void)
++{
++  printf("hello, world!\n");
++}
++
++__attribute__ ((hotpatch(1,2)))
++__attribute__ ((always_inline))
++static inline void hp4(void)
++{
++  printf("hello, world!\n");
++}
++
++void main(void)
++{
++  hp1();
++  hp2();
++  hp3();
++  hp4();
++}
+--- gcc/testsuite/gcc.target/s390/hotpatch-compile-16.c.jj	2015-03-26 16:25:08.326262905 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-compile-16.c	2015-05-29 18:50:03.740888886 +0200
+@@ -0,0 +1,24 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-O3 -mzarch" } */
++
++typedef int (*fn_t)(void);
++
++fn_t hp1(void)
++{
++  __attribute__((hotpatch(0,0)))
++  int nested1(void)
++  { return 1; }
++
++  return nested1;
++}
++
++fn_t hp2(void)
++{
++  __attribute__ ((hotpatch(1,2)))
++  int nested2(void)
++  { return 2; }
++
++  return nested2;
++}
+--- gcc/testsuite/gcc.target/s390/hotpatch-compile-2.c.jj	2015-03-26 16:25:08.327262889 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-compile-2.c	2015-03-26 16:25:08.327262889 +0100
+@@ -0,0 +1,5 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-O3 -mzarch -mhotpatch=0,-1" } */
++/* { dg-error "arguments to .-mhotpatch=n,m. should be non-negative integers" "" { target *-*-* } 0 } */
+--- gcc/testsuite/gcc.target/s390/hotpatch-compile-3.c.jj	2015-03-26 16:25:08.327262889 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-compile-3.c	2015-03-26 16:25:08.327262889 +0100
+@@ -0,0 +1,5 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-O3 -mzarch -mhotpatch=0" } */
++/* { dg-error "arguments to .-mhotpatch=n,m. should be non-negative integers" "" { target *-*-* } 0 } */
+--- gcc/testsuite/gcc.target/s390/hotpatch-compile-4.c.jj	2015-03-26 16:25:08.327262889 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-compile-4.c	2015-03-26 16:25:08.327262889 +0100
+@@ -0,0 +1,5 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-O3 -mzarch -mhotpatch=0,0,0" } */
++/* { dg-error "arguments to .-mhotpatch=n,m. should be non-negative integers" "" { target *-*-* } 0 } */
+--- gcc/testsuite/gcc.target/s390/hotpatch-compile-5.c.jj	2015-03-26 16:25:08.327262889 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-compile-5.c	2015-03-26 16:25:08.327262889 +0100
+@@ -0,0 +1,5 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-O3 -mzarch -mhotpatch=a,0" } */
++/* { dg-error "arguments to .-mhotpatch=n,m. should be non-negative integers" "" { target *-*-* } 0 } */
+--- gcc/testsuite/gcc.target/s390/hotpatch-compile-6.c.jj	2015-03-26 16:25:08.328262873 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-compile-6.c	2015-03-26 16:25:08.328262873 +0100
+@@ -0,0 +1,5 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-O3 -mzarch -mhotpatch=0,a" } */
++/* { dg-error "arguments to .-mhotpatch=n,m. should be non-negative integers" "" { target *-*-* } 0 } */
+--- gcc/testsuite/gcc.target/s390/hotpatch-compile-7.c.jj	2015-03-26 16:25:08.328262873 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-compile-7.c	2015-03-26 16:25:08.328262873 +0100
+@@ -0,0 +1,10 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-O3 -mzarch" } */
++
++__attribute__((hotpatch(-1,0)))
++int main (void)
++{/* { dg-error "attribute is not a comma separated pair of non-negative integer constants or too large" } */
++  return 0;
++}
+--- gcc/testsuite/gcc.target/s390/hotpatch-compile-8.c.jj	2015-03-26 16:25:08.328262873 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-compile-8.c	2015-03-26 16:25:08.328262873 +0100
+@@ -0,0 +1,10 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-O3 -mzarch" } */
++
++__attribute__((hotpatch(0,-1)))
++int main (void)
++{/* { dg-error "attribute is not a comma separated pair of non-negative integer constants or too large" } */
++  return 0;
++}
+--- gcc/testsuite/gcc.target/s390/hotpatch-compile-9.c.jj	2015-03-26 16:25:08.328262873 +0100
++++ gcc/testsuite/gcc.target/s390/hotpatch-compile-9.c	2015-03-26 16:25:08.328262873 +0100
+@@ -0,0 +1,10 @@
++/* Functional tests for the function hotpatching feature.  */
++
++/* { dg-do compile } */
++/* { dg-options "-O3 -mzarch" } */
++
++__attribute__((hotpatch(0)))
++int main (void)
++{/* { dg-error "wrong number of arguments specified" } */
++  return 0;
++}

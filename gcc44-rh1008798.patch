@@ -1,0 +1,33 @@
+2014-04-15  Marek Polacek  <polacek@redhat.com>
+	    Jakub Jelinek  <jakub@redhat.com>
+
+	* gcov.c (process_file): Restore functions if something fails.
+
+--- gcc/gcov.c	(revision 208861)
++++ gcc/gcov.c	(working copy)
+@@ -521,16 +521,23 @@
+ 
+   create_file_names (file_name);
+   if (read_graph_file ())
+-    return;
++    {
++      functions = old_functions;
++      return;
++    }
+ 
+   if (!functions)
+     {
++      functions = old_functions;
+       fnotice (stderr, "%s:no functions found\n", bbg_file_name);
+       return;
+     }
+ 
+   if (read_count_file ())
+-    return;
++    {
++      functions = old_functions;
++      return;
++    }
+ 
+   for (fn_p = NULL, fn = functions; fn; fn_p = fn, fn = fn->next)
+     solve_flow_graph (fn);

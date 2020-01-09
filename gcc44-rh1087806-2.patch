@@ -1,0 +1,168 @@
+2014-08-08  Jason Merrill  <jason@redhat.com>
+
+    	* call.c (build_x_va_arg): Support passing non-POD through ....
+    	(convert_arg_to_ellipsis): Likewise.
+
+	* g++.dg/ext/varargs1.C: New test.
+	* g++.old-deja/g++.other/vaarg3.C: Adjust dg-warning.
+	* g++.old-deja/g++.brendan/crash63.C: Remove dg-warning.
+	* g++.dg/warn/var-args1.C: Change dg-warning to dg-error.
+
+--- gcc/cp/call.c
++++ gcc/cp/call.c
+@@ -194,7 +194,6 @@ static conversion *direct_reference_binding (tree, conversion *);
+ static bool promoted_arithmetic_type_p (tree);
+ static conversion *conditional_conversion (tree, tree);
+ static char *name_as_c_string (tree, tree, bool *);
+-static tree call_builtin_trap (void);
+ static tree prep_operand (tree);
+ static void add_candidates (tree, tree, tree, bool, tree, tree,
+ 			    int, struct z_candidate **);
+@@ -4909,18 +4908,6 @@ convert_like_real (conversion *convs, tree expr, tree fn, int argnum,
+   return expr;
+ }
+ 
+-/* Build a call to __builtin_trap.  */
+-
+-static tree
+-call_builtin_trap (void)
+-{
+-  tree fn = implicit_built_in_decls[BUILT_IN_TRAP];
+-
+-  gcc_assert (fn != NULL);
+-  fn = build_call_n (fn, 0);
+-  return fn;
+-}
+-
+ /* ARG is being passed to a varargs function.  Perform any conversions
+    required.  Return the converted value.  */
+ 
+@@ -4958,11 +4945,9 @@ convert_arg_to_ellipsis (tree arg)
+ 	 there is no need to emit a warning, since the expression won't be
+ 	 evaluated. We keep the builtin_trap just as a safety check.  */
+       if (!skip_evaluation)
+-	warning (0, "cannot pass objects of non-POD type %q#T through %<...%>; "
+-		 "call will abort at runtime", TREE_TYPE (arg));
+-      arg = call_builtin_trap ();
+-      arg = build2 (COMPOUND_EXPR, integer_type_node, arg,
+-		    integer_zero_node);
++	warning (0, "cannot pass objects of non-POD type %q#T through %<...%>",
++		 TREE_TYPE (arg));
++      arg = cp_build_unary_op (ADDR_EXPR, arg, true, tf_warning_or_error);
+     }
+ 
+   return arg;
+@@ -4983,19 +4968,20 @@ build_x_va_arg (tree expr, tree type)
+ 
+   expr = mark_lvalue_use (expr);
+ 
+-  if (TREE_ADDRESSABLE (type)
+-      || TREE_CODE (type) == REFERENCE_TYPE)
++  if (TREE_CODE (type) == REFERENCE_TYPE)
+     {
+-      /* Remove reference types so we don't ICE later on.  */
+-      tree type1 = non_reference (type);
++      error ("cannot receive reference type %qT through %<...%>", type);
++      return error_mark_node;
++    }
++
++  if (TREE_ADDRESSABLE (type))
++    {
++      tree ptr = build_pointer_type (type);
+       /* Undefined behavior [expr.call] 5.2.2/7.  */
+-      warning (0, "cannot receive objects of non-POD type %q#T through %<...%>; "
+-	       "call will abort at runtime", type);
+-      expr = convert (build_pointer_type (type1), null_node);
+-      expr = build2 (COMPOUND_EXPR, TREE_TYPE (expr),
+-		     call_builtin_trap (), expr);
+-      expr = cp_build_indirect_ref (expr, NULL, tf_warning_or_error);
+-      return expr;
++      warning (0, "cannot receive objects of non-POD type %q#T through %<...%>",
++	       type);
++      ptr = build_va_arg (expr, ptr);
++      return cp_build_indirect_ref (ptr, NULL, tf_warning_or_error);
+     }
+ 
+   return build_va_arg (expr, type);
+--- gcc/testsuite/g++.dg/ext/varargs1.C
++++ gcc/testsuite/g++.dg/ext/varargs1.C
+@@ -0,0 +1,31 @@
++#include <stdarg.h>
++extern "C" void abort();
++
++void *as[5];
++int i;
++
++struct A {
++  A() { as[i++] = this; }
++  A(const A& a) {
++    if (&a != as[i-1])
++      abort();
++    as[i++] = this;
++  }
++  ~A() {
++    if (this != as[--i])
++      abort();
++  }
++};
++
++void f(int i, ...) {
++  va_list ap;
++  va_start (ap, i);
++  A ar = va_arg (ap, A);	// { dg-warning "non-POD" }
++}
++
++int main()
++{
++  f(42,A());			// { dg-warning "non-POD" }
++  if (i != 0)
++    abort();
++}
+--- gcc/testsuite/g++.dg/warn/var-args1.C
++++ gcc/testsuite/g++.dg/warn/var-args1.C
+@@ -6,6 +6,6 @@ void foo(int, ...)
+ {
+     va_list va;
+     int i;
+-    i = va_arg(va, int&); /* { dg-warning "cannot receive objects" } */
++    i = va_arg(va, int&); /* { dg-error "cannot receive" } */
+ }
+ 
+--- gcc/testsuite/g++.old-deja/g++.brendan/crash63.C
++++ gcc/testsuite/g++.old-deja/g++.brendan/crash63.C
+@@ -12,4 +12,4 @@ class UnitList
+    UnitList (...);
+    };
+ 
+-UnitList unit_list (String("keV")); // { dg-warning "" } cannot pass non-pod
++UnitList unit_list (String("keV"));
+--- gcc/testsuite/g++.old-deja/g++.other/vaarg3.C
++++ gcc/testsuite/g++.old-deja/g++.other/vaarg3.C
+@@ -9,14 +9,14 @@
+ #include <stdarg.h>
+ 
+ struct X {int m;};
+-struct Y : X {int m;};
++struct Y { Y(const Y&); };
+ struct Z;   // { dg-error "forward decl" } 
+ void fn1(va_list args)
+ {
+   int i = va_arg (args, int);
+   Y x = va_arg (args, Y);         // { dg-warning "cannot receive" } 
+   Y y = va_arg (args, struct Y);  // { dg-warning "cannot receive" } 
+-  int &r = va_arg (args, int &);  // { dg-warning "cannot receive" } 
++  int &r = va_arg (args, int &);  // { dg-error "cannot receive" }
+   
+   Z z1 = va_arg (args, Z);        // { dg-error "incomplete" } 
+   const Z &z2 = va_arg (args, Z);       // { dg-error "incomplete" } 
+@@ -25,7 +25,8 @@ void fn1(va_list args)
+   // { dg-message "should pass" "pass" { target *-*-* } 24 }
+   // { dg-message "abort" "abort" { target *-*-* } 24 }
+   va_arg (args, int []);  // { dg-error "array with unspecified bounds" } promote
+-  va_arg (args, int ());  // { dg-warning "non-POD" } promote
++  va_arg (args, int ());  // { dg-warning "promote" } promote
++  // { dg-message "abort" "abort" { target *-*-* } 28 }
+   va_arg (args, bool);    // { dg-warning "promote" "promote" } 
+-  // { dg-message "abort" "abort" { target *-*-* } 29 }
++  // { dg-message "abort" "abort" { target *-*-* } 30 }
+ }

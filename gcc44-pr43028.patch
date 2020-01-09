@@ -1,0 +1,36 @@
+2010-05-04  Paolo Carlini  <paolo.carlini@oracle.com>
+
+	PR c++/43028
+	* pt.c (unify): Check each elt for error_mark_node.
+
+	* g++.dg/cpp0x/initlist31.C: New.
+
+--- gcc/testsuite/g++.dg/cpp0x/initlist31.C	(revision 0)
++++ gcc/testsuite/g++.dg/cpp0x/initlist31.C	(revision 159045)
+@@ -0,0 +1,13 @@
++// PR c++/43028
++// { dg-options "-std=c++0x" }
++
++#include <initializer_list>
++
++struct string { string(std::initializer_list<char>) { } };
++
++void f() {
++  auto y =
++  {
++    string(Equation()) // { dg-error "not declared" }
++  }; // { dg-error "unable to deduce" }
++}
+--- gcc/cp/pt.c	(revision 159044)
++++ gcc/cp/pt.c	(revision 159045)
+@@ -13491,6 +13491,10 @@
+       FOR_EACH_CONSTRUCTOR_VALUE (CONSTRUCTOR_ELTS (arg), i, elt)
+ 	{
+ 	  int elt_strict = strict;
++
++	  if (elt == error_mark_node)
++	    return 1;
++
+ 	  if (!BRACE_ENCLOSED_INITIALIZER_P (elt))
+ 	    {
+ 	      tree type = TREE_TYPE (elt);

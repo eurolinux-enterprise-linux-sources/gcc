@@ -1,0 +1,47 @@
+2014-09-03  Fritz Reese  <Reese-Fritz@zai.com>
+
+	PR fortran/62174
+	* decl.c (variable_decl): Don't overwrite typespecs of Cray pointees
+	when matching a component declaration.
+
+	PR fortran/62174
+	* gfortran.dg/cray_pointers_11.f90: New.
+
+--- gcc/fortran/decl.c	(revision 214890)
++++ gcc/fortran/decl.c	(revision 214891)
+@@ -1904,8 +1904,9 @@ variable_decl (int elem)
+     }
+ 
+   /*  If this symbol has already shown up in a Cray Pointer declaration,
++      and this is not a component declaration,
+       then we want to set the type & bail out.  */
+-  if (gfc_option.flag_cray_pointer)
++  if (gfc_option.flag_cray_pointer && gfc_current_state () != COMP_DERIVED)
+     {
+       gfc_find_symbol (name, gfc_current_ns, 1, &sym);
+       if (sym != NULL && sym->attr.cray_pointee)
+--- gcc/testsuite/gfortran.dg/cray_pointers_11.f90	(revision 0)
++++ gcc/testsuite/gfortran.dg/cray_pointers_11.f90	(revision 214891)
+@@ -0,0 +1,22 @@
++! { dg-do compile }
++! { dg-options "-fcray-pointer" }
++!
++! PR fortran/62174
++! Component declarations within derived types would overwrite the typespec of
++! variables with the same name who were Cray pointees.
++implicit none
++
++type t1
++  integer i
++end type t1
++type(t1) x
++
++pointer (x_ptr, x)
++
++type t2
++  real x ! should not overwrite x's type
++end type t2
++
++x%i = 0 ! should see no error here
++
++end

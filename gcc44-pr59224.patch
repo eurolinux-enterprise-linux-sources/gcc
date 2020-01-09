@@ -1,0 +1,92 @@
+2014-04-01  Jason Merrill  <jason@redhat.com>
+
+	Core DR 475
+	PR c++/41174
+	PR c++/59224
+	* libsupc++/eh_throw.cc (__cxa_throw): Set uncaughtExceptions.
+	* libsupc++/eh_alloc.cc (__cxa_allocate_dependent_exception)
+	(__cxa_allocate_exception): Don't set it here.
+
+--- libstdc++-v3/libsupc++/eh_alloc.cc	(revision 208990)
++++ libstdc++-v3/libsupc++/eh_alloc.cc	(revision 208991)
+@@ -126,12 +126,6 @@
+ 	std::terminate ();
+     }
+ 
+-  // We have an uncaught exception as soon as we allocate memory.  This
+-  // yields uncaught_exception() true during the copy-constructor that
+-  // initializes the exception object.  See Issue 475.
+-  __cxa_eh_globals *globals = __cxa_get_globals ();
+-  globals->uncaughtExceptions += 1;
+-
+   memset (ret, 0, sizeof (__cxa_refcounted_exception));
+ 
+   return (void *)((char *)ret + sizeof (__cxa_refcounted_exception));
+@@ -188,12 +182,6 @@
+ 	std::terminate ();
+     }
+ 
+-  // We have an uncaught exception as soon as we allocate memory.  This
+-  // yields uncaught_exception() true during the copy-constructor that
+-  // initializes the exception object.  See Issue 475.
+-  __cxa_eh_globals *globals = __cxa_get_globals ();
+-  globals->uncaughtExceptions += 1;
+-
+   memset (ret, 0, sizeof (__cxa_dependent_exception));
+ 
+   return ret;
+--- libstdc++-v3/libsupc++/eh_throw.cc	(revision 208990)
++++ libstdc++-v3/libsupc++/eh_throw.cc	(revision 208991)
+@@ -61,6 +61,9 @@
+ __cxxabiv1::__cxa_throw (void *obj, std::type_info *tinfo, 
+ 			 void (*dest) (void *))
+ {
++  __cxa_eh_globals *globals = __cxa_get_globals ();
++  globals->uncaughtExceptions += 1;
++
+   // Definitely a primary.
+   __cxa_refcounted_exception *header
+     = __get_refcounted_exception_header_from_obj (obj);
+--- gcc/testsuite/g++.dg/eh/uncaught1.C	(revision 208990)
++++ gcc/testsuite/g++.dg/eh/uncaught1.C	(revision 208991)
+@@ -13,7 +13,7 @@
+ 
+ static Check const data[] = {
+   { 0, 0, false },	// construct [0]
+-  { 1, 0, true  },	// [1] = [0]
++  { 1, 0, false  },	// [1] = [0]
+   { 0, 0, true  },	// destruct [0]
+   { 2, 1, true  },	// [2] = [1]
+   { 2, 2, true  },      // destruct [2]
+--- gcc/testsuite/g++.dg/eh/uncaught4.C	(revision 0)
++++ gcc/testsuite/g++.dg/eh/uncaught4.C	(revision 208991)
+@@ -0,0 +1,29 @@
++// PR c++/41174
++// { dg-do run }
++
++#include <exception>
++
++#define assert(E) if (!(E)) __builtin_abort();
++
++struct e {
++  e()
++  {
++    assert( !std::uncaught_exception() );
++    try {
++      throw 1;
++    } catch (int i) {
++      assert( !std::uncaught_exception() );
++      throw;
++    }
++  }
++};
++
++int main()
++{
++  try {
++    throw e();
++  } catch (int i) {
++    assert( !std::uncaught_exception() );
++  }
++  assert( !std::uncaught_exception() );
++}
