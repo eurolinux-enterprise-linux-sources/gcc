@@ -1,0 +1,62 @@
+commit 24f2e359347f310b448d2918a1aee1465e0e5097
+Author: root <root@lenovo-x3950-01.khw.lab.eng.bos.redhat.com>
+Date:   Thu Jan 18 00:12:41 2018 -0500
+
+    Add FIRST_INT_REG, LAST_INT_REG, LEGACY_INT_REG_P , and LEGACY_INT_REGNO_P
+    Add dejagnu infrastructure
+
+diff --git a/gcc/config/i386/i386.h b/gcc/config/i386/i386.h
+index b1cc3d8..b47d652 100644
+--- a/gcc/config/i386/i386.h
++++ b/gcc/config/i386/i386.h
+@@ -1101,6 +1101,9 @@ enum target_cpu_default
+ /* Base register for access to local variables of the function.  */
+ #define FRAME_POINTER_REGNUM 20
+ 
++#define FIRST_INT_REG AX_REG
++#define LAST_INT_REG  SP_REG
++
+ /* First floating point reg */
+ #define FIRST_FLOAT_REG 8
+ 
+@@ -1329,6 +1332,9 @@ enum reg_class
+ #define GENERAL_REGNO_P(N) \
+   ((N) <= STACK_POINTER_REGNUM || REX_INT_REGNO_P (N))
+ 
++#define LEGACY_INT_REG_P(X) (REG_P (X) && LEGACY_INT_REGNO_P (REGNO (X)))
++#define LEGACY_INT_REGNO_P(N) (IN_RANGE ((N), FIRST_INT_REG, LAST_INT_REG))
++
+ #define GENERAL_REG_P(X) \
+   (REG_P (X) && GENERAL_REGNO_P (REGNO (X)))
+ 
+diff --git a/gcc/testsuite/lib/gcc-defs.exp b/gcc/testsuite/lib/gcc-defs.exp
+index 53926a6..fd91fd3 100644
+--- a/gcc/testsuite/lib/gcc-defs.exp
++++ b/gcc/testsuite/lib/gcc-defs.exp
+@@ -265,3 +265,26 @@ proc gcc-set-multilib-library-path { compiler } {
+ 
+     return $libpath
+ }
++
++# Like dg-options, but adds to the default options rather than replacing them.
++
++proc dg-additional-options { args } {
++    upvar dg-extra-tool-flags extra-tool-flags
++
++    if { [llength $args] > 3 } {
++        error "[lindex $args 0]: too many arguments"
++        return
++    }
++
++    if { [llength $args] >= 3 } {
++        switch [dg-process-target [lindex $args 2]] {
++            "S" { eval lappend extra-tool-flags [lindex $args 1] }
++            "N" { }
++            "F" { error "[lindex $args 0]: `xfail' not allowed here" }
++            "P" { error "[lindex $args 0]: `xfail' not allowed here" }
++        }
++    } else {
++        eval lappend extra-tool-flags [lindex $args 1]
++    }
++}
++

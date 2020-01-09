@@ -40,7 +40,7 @@ Summary: Various compilers (C, C++, Objective-C, Java, ...)
 Name: gcc
 %global gcc_version 4.4.4
 Version: 4.4.7
-Release: %{gcc_release}%{?dist}
+Release: %{gcc_release}%{?dist}.2
 %if "%{version}" != "%{gcc_version}"
 %define gcc_provides %{gcc_version}-15%{?dist}
 %endif
@@ -222,6 +222,14 @@ Patch1001: fastjar-0.97-len1.patch
 Patch1002: fastjar-0.97-filename0.patch
 Patch1003: fastjar-CVE-2010-0831.patch
 Patch1004: fastjar-man.patch
+
+Patch1101: gcc44-rh1535656-1.patch
+Patch1102: gcc44-rh1535656-2.patch
+Patch1103: gcc44-rh1535656-3.patch
+Patch1104: gcc44-rh1535656-4.patch
+Patch1105: gcc44-rh1535656-5.patch
+Patch1106: gcc44-rh1535656-6.patch
+Patch1107: gcc44-rh1535656-7.patch
 
 # On ARM EABI systems, we do want -gnueabi to be part of the
 # target triple.
@@ -678,6 +686,14 @@ tar xzf %{SOURCE4}
 %patch1002 -p0 -b .fastjar-0.97-filename0~
 %patch1003 -p0 -b .fastjar-CVE-2010-0831~
 %patch1004 -p0 -b .fastjar-man~
+
+%patch1101 -p1 -b .rh1535656-1~
+%patch1102 -p1 -b .rh1535656-2~
+%patch1103 -p1 -b .rh1535656-3~
+%patch1104 -p1 -b .rh1535656-4~
+%patch1105 -p1 -b .rh1535656-5~
+%patch1106 -p1 -b .rh1535656-6~
+%patch1107 -p1 -b .rh1535656-7~
 
 %if %{bootstrap_java}
 tar xjf %{SOURCE10}
@@ -2274,6 +2290,12 @@ fi
 %endif
 
 %changelog
+* Wed Jan 31 2018 Jeff Law <law@redhat.com> 4.4.7-18.2
+- Fix indirect_jump/tablejump patters for retpolines (#1535656)
+
+* Tue Jan 23 2018 Jeff Law <law@redhat.com> 4.4.7-18.1
+- Retpoline support (#1535656)
+
 * Tue Oct 18 2016 Jakub Jelinek <jakub@redhat.com> 4.4.7-18
 - fix up std::rethrow_exception (PR libstdc++/62258, #1380760)
 - fix fortran ICE in resolve_ordinary_assign (PR fortran/43362, #1356346)
