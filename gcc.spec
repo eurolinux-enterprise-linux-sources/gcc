@@ -2,7 +2,7 @@
 %global SVNREV 225304
 # Note, gcc_release must be integer, if you want to add suffixes to
 # %{release}, append them after %{gcc_release} on Release: line.
-%global gcc_release 36
+%global gcc_release 39
 %global _unpackaged_files_terminate_build 0
 %global _performance_build 1
 %global multilib_64_archs sparc64 ppc64 ppc64p7 s390x x86_64
@@ -79,7 +79,7 @@ Name: gcc
 %global gcc_version 4.8.5
 %endif
 Version: 4.8.5
-Release: %{gcc_release}%{?dist}.2
+Release: %{gcc_release}%{?dist}
 %if "%{version}" != "%{gcc_version}"
 %define gcc_provides %{gcc_version}-16%{?dist}
 %endif
@@ -269,8 +269,15 @@ Patch69: gcc48-pr72717.patch
 Patch70: gcc48-pr66840.patch
 Patch71: gcc48-rh1546372.patch
 Patch72: gcc48-rh1655148.patch
-Patch73: gcc48-rh1659698.patch
-Patch74: gcc48-pr63442.patch
+Patch73: gcc48-pr63442.patch
+Patch74: gcc48-rh1659698.patch
+Patch75: gcc48-pr69891.patch
+Patch76: gcc48-pr68814.patch
+Patch77: gcc48-pr63567-1.patch
+Patch78: gcc48-pr63567-2.patch
+Patch79: gcc48-rh1614326.patch
+Patch80: gcc48-pr60784.patch
+Patch81: gcc48-pr53658.patch
 
 Patch1000: fastjar-0.97-segfault.patch
 Patch1001: fastjar-0.97-len1.patch
@@ -1063,8 +1070,15 @@ touch -r %{PATCH27} libstdc++-v3/python/libstdcxx/v6/printers.py
 %patch70 -p0 -b .pr66840~
 %patch71 -p0 -b .rh1546372~
 %patch72 -p1 -b .rh1655148~
-%patch73 -p0 -b .rh1659698~
-%patch74 -p0 -b .pr63442~
+%patch73 -p0 -b .pr63442~
+%patch74 -p0 -b .rh1659698~
+%patch75 -p0 -b .pr69891~
+%patch76 -p0 -b .pr68814~
+%patch77 -p0 -b .pr63567-1~
+%patch78 -p0 -b .pr63567-2~
+%patch79 -p0 -b .rh1614326~
+%patch80 -p0 -b .pr60784~
+%patch81 -p0 -b .pr53658~
 
 %if 0%{?_enable_debug_packages}
 cat > split-debuginfo.sh <<\EOF
@@ -3554,11 +3568,21 @@ fi
 %{_prefix}/libexec/gcc/%{gcc_target_platform}/%{gcc_version}/plugin
 
 %changelog
-* Wed Feb 13 2019 Marek Polacek <polacek@redhat.com> 4.8.5-36.2
-- allow libitm to use HTM (#1674383)
-- fix mode mismatch in prepare_cmp_insn (#1676795, PR target/63442)
+* Tue Feb 26 2019 Marek Polacek <polacek@redhat.com> 4.8.5-39
+- fix pr63567-2.c and pr63567-4.c
 
-* Wed Jan 16 2019 Jeff Law <law@redhat.com> 4.8.5-36.1
+* Mon Feb 25 2019 Marek Polacek <polacek@redhat.com> 4.8.5-38
+- fix mode mismatch in prepare_cmp_insn (#1641329, PR target/63442)
+- allow libitm to use HTM (#1659698)
+- fix up memset handling in DSE (#1640805, PR rtl-optimization/69891)
+- fix bits/bytes confusion in set_noop_p (#1594975, PR rtl-optimization/68814)
+- enable initializing statics with COMPOUND_LITERAL_EXPR in C99
+  (#1672652, PR c/63567)
+- fix PIC_OFFSET_TABLE_REGNUM (#1614326)
+- quash spurious -Wmissing-field-initializers warnings (#1633716, PR c/60784)
+- fix ICE with alias template (#1648161, PR c++/53658)
+
+* Wed Jan 16 2019 Jeff Law <law@redhat.com> 4.8.5-37
 - Avoid code generation bug due to incorrect CFG in the presence
   of setjmp/longjmp (#1655148).
 

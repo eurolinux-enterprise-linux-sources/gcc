@@ -1,0 +1,45 @@
+2014-10-19  Marek Polacek  <polacek@redhat.com>
+
+	PR c/63567
+	* c-typeck.c (output_init_element): Allow initializing objects with
+	static storage duration with compound literals even in C99 and add
+	pedwarn for it.
+
+--- gcc/c/c-typeck.c
++++ gcc/c/c-typeck.c
+@@ -8251,11 +8251,14 @@ output_init_element (location_t loc, tree value, tree origtype,
+     value = array_to_pointer_conversion (input_location, value);
+ 
+   if (TREE_CODE (value) == COMPOUND_LITERAL_EXPR
+-      && require_constant_value && !flag_isoc99 && pending)
++      && require_constant_value && pending)
+     {
+       /* As an extension, allow initializing objects with static storage
+ 	 duration with compound literals (which are then treated just as
+ 	 the brace enclosed list they contain).  */
++      if (flag_isoc99)
++	pedwarn_init (input_location, OPT_Wpedantic, "initializer element is not "
++		      "constant");
+       tree decl = COMPOUND_LITERAL_EXPR_DECL (value);
+       value = DECL_INITIAL (decl);
+     }
+--- /dev/null
++++ gcc/testsuite/gcc.dg/pr63567-3.c
+@@ -0,0 +1,7 @@
++/* PR c/63567 */
++/* { dg-do compile } */
++/* { dg-options "" } */
++
++struct T { int i; };
++struct S { struct T t; };
++struct S s = { .t = { (int) { 1 } } };
+--- /dev/null
++++ gcc/testsuite/gcc.dg/pr63567-4.c
+@@ -0,0 +1,7 @@
++/* PR c/63567 */
++/* { dg-do compile } */
++/* { dg-options "-Wpedantic -std=gnu99" } */
++
++struct T { int i; };
++struct S { struct T t; };
++struct S s = { .t = { (int) { 1 } } }; /* { dg-warning "initializer element is not constant|initialization" } */

@@ -1,0 +1,52 @@
+2014-10-17  Marek Polacek  <polacek@redhat.com>
+
+	PR c/63567
+	* c-typeck.c (digest_init): Allow initializing objects with static
+	storage duration with compound literals even in C99 and add pedwarn
+	for it.
+
+--- gcc/c/c-typeck.c
++++ gcc/c/c-typeck.c
+@@ -6683,13 +6683,15 @@ digest_init (location_t init_loc, tree type, tree init, tree origtype,
+ 	inside_init = convert (type, inside_init);
+ 
+       if (require_constant
+-	  && (code == VECTOR_TYPE || !flag_isoc99)
+ 	  && TREE_CODE (inside_init) == COMPOUND_LITERAL_EXPR)
+ 	{
+ 	  /* As an extension, allow initializing objects with static storage
+ 	     duration with compound literals (which are then treated just as
+ 	     the brace enclosed list they contain).  Also allow this for
+ 	     vectors, as we can only assign them with compound literals.  */
++	  if (flag_isoc99 && code != VECTOR_TYPE)
++	    pedwarn_init (init_loc, OPT_Wpedantic, "initializer element "
++			  "is not constant");
+ 	  tree decl = COMPOUND_LITERAL_EXPR_DECL (inside_init);
+ 	  inside_init = DECL_INITIAL (decl);
+ 	}
+--- /dev/null
++++ gcc/testsuite/gcc.dg/pr63567-1.c
+@@ -0,0 +1,10 @@
++/* PR c/63567 */
++/* { dg-do compile } */
++/* { dg-options "" } */
++
++/* Allow initializing objects with static storage duration with
++   compound literals even.  This is being used in Linux kernel.  */
++
++struct T { int i; };
++struct S { struct T t; };
++static struct S s = (struct S) { .t = { 42 } };
+--- /dev/null
++++ gcc/testsuite/gcc.dg/pr63567-2.c
+@@ -0,0 +1,10 @@
++/* PR c/63567 */
++/* { dg-do compile } */
++/* { dg-options "-pedantic -std=gnu99" } */
++
++/* Allow initializing objects with static storage duration with
++   compound literals.  This is being used in Linux kernel.  */
++
++struct T { int i; };
++struct S { struct T t; };
++static struct S s = (struct S) { .t = { 42 } }; /* { dg-warning "initializer element is not constant" } */
