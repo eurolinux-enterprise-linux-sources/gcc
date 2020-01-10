@@ -1,0 +1,16 @@
+2014-10-27  Jiong Wang <jiong.wang@arm.com>
+
+	PR target/63442
+	* optabs.c (prepare_cmp_insn): Use "ret_mode" instead of "word_mode".
+
+--- gcc/optabs.c
++++ gcc/optabs.c
+@@ -4294,7 +4294,7 @@ prepare_cmp_insn (rtx x, rtx y, enum rtx_code comparison, rtx size,
+ 	    y = const0_rtx;
+ 	}
+ 
+-      *pmode = word_mode;
++      *pmode = ret_mode;
+       prepare_cmp_insn (x, y, comparison, NULL_RTX, unsignedp, methods,
+ 			ptest, pmode);
+     }

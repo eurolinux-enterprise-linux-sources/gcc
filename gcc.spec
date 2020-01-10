@@ -79,7 +79,7 @@ Name: gcc
 %global gcc_version 4.8.5
 %endif
 Version: 4.8.5
-Release: %{gcc_release}%{?dist}.1
+Release: %{gcc_release}%{?dist}.2
 %if "%{version}" != "%{gcc_version}"
 %define gcc_provides %{gcc_version}-16%{?dist}
 %endif
@@ -269,6 +269,8 @@ Patch69: gcc48-pr72717.patch
 Patch70: gcc48-pr66840.patch
 Patch71: gcc48-rh1546372.patch
 Patch72: gcc48-rh1655148.patch
+Patch73: gcc48-rh1659698.patch
+Patch74: gcc48-pr63442.patch
 
 Patch1000: fastjar-0.97-segfault.patch
 Patch1001: fastjar-0.97-len1.patch
@@ -1061,6 +1063,8 @@ touch -r %{PATCH27} libstdc++-v3/python/libstdcxx/v6/printers.py
 %patch70 -p0 -b .pr66840~
 %patch71 -p0 -b .rh1546372~
 %patch72 -p1 -b .rh1655148~
+%patch73 -p0 -b .rh1659698~
+%patch74 -p0 -b .pr63442~
 
 %if 0%{?_enable_debug_packages}
 cat > split-debuginfo.sh <<\EOF
@@ -3550,6 +3554,10 @@ fi
 %{_prefix}/libexec/gcc/%{gcc_target_platform}/%{gcc_version}/plugin
 
 %changelog
+* Wed Feb 13 2019 Marek Polacek <polacek@redhat.com> 4.8.5-36.2
+- allow libitm to use HTM (#1674383)
+- fix mode mismatch in prepare_cmp_insn (#1676795, PR target/63442)
+
 * Wed Jan 16 2019 Jeff Law <law@redhat.com> 4.8.5-36.1
 - Avoid code generation bug due to incorrect CFG in the presence
   of setjmp/longjmp (#1655148).
