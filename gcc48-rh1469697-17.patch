@@ -1,0 +1,58 @@
+
+            * config/i386/i386.c (ix86_emit_restore_reg_using_pop): Prototype.
+            (ix86_adjust_stack_and_probe_stack_clash): Use a push/pop sequence
+            to probe at the start of a noreturn function.
+    
+            * gcc.target/i386/stack-check-12.c: New test
+
+diff -Nrup a/gcc/config/i386/i386.c b/gcc/config/i386/i386.c
+--- a/gcc/config/i386/i386.c	2017-11-03 13:35:17.641528205 -0600
++++ b/gcc/config/i386/i386.c	2017-11-03 13:37:39.489361692 -0600
+@@ -64,6 +64,7 @@ along with GCC; see the file COPYING3.
+ #include "tree-flow.h"
+ 
+ static rtx legitimize_dllimport_symbol (rtx, bool);
++static void ix86_emit_restore_reg_using_pop (rtx);
+ 
+ #ifndef CHECK_STACK_LIMIT
+ #define CHECK_STACK_LIMIT (-1)
+@@ -9884,8 +9885,14 @@ ix86_adjust_stack_and_probe_stack_clash
+      we just probe when we cross PROBE_INTERVAL.  */
+   if (TREE_THIS_VOLATILE (cfun->decl))
+     {
+-      emit_stack_probe (plus_constant (Pmode, stack_pointer_rtx,
+-				       -GET_MODE_SIZE (word_mode)));
++      /* We can safely use any register here since we're just going to push
++	 its value and immediately pop it back.  But we do try and avoid
++	 argument passing registers so as not to introduce dependencies in
++	 the pipeline.  For 32 bit we use %esi and for 64 bit we use %rax.  */
++      rtx dummy_reg = gen_rtx_REG (word_mode, TARGET_64BIT ? AX_REG : SI_REG);
++      rtx insn = emit_insn (gen_push (dummy_reg));
++      RTX_FRAME_RELATED_P (insn) = 1;
++      ix86_emit_restore_reg_using_pop (dummy_reg);
+       emit_insn (gen_blockage ());
+     }
+ 
+diff -Nrup a/gcc/testsuite/gcc.target/i386/stack-check-12.c b/gcc/testsuite/gcc.target/i386/stack-check-12.c
+--- a/gcc/testsuite/gcc.target/i386/stack-check-12.c	1969-12-31 17:00:00.000000000 -0700
++++ b/gcc/testsuite/gcc.target/i386/stack-check-12.c	2017-11-03 13:36:15.104055651 -0600
+@@ -0,0 +1,19 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -fstack-clash-protection -mtune=generic -fomit-frame-pointer" } */
++/* { dg-require-effective-target supports_stack_clash_protection } */
++
++__attribute__ ((noreturn)) void exit (int);
++
++__attribute__ ((noreturn)) void
++f (void)
++{
++  asm volatile ("nop" ::: "edi");
++  exit (1);
++}
++
++/* { dg-final { scan-assembler-not "or\[ql\]" } } */
++/* { dg-final { scan-assembler "pushl	%esi" { target ia32 } } } */
++/* { dg-final { scan-assembler "popl	%esi" { target ia32 } } }*/
++/* { dg-final { scan-assembler "pushq	%rax" { target { ! ia32 } } } } */
++/* { dg-final { scan-assembler "popq	%rax" { target { ! ia32 } } } }*/
++

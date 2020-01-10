@@ -1,0 +1,163 @@
+2014-05-05  Andreas Krebbel  <Andreas.Krebbel@de.ibm.com>
+
+	* target.def: Add new target hook.
+	* doc/tm.texi: Regenerate.
+	* targhooks.h (default_keep_leaf_when_profiled): Add prototype.
+	* targhooks.c (default_keep_leaf_when_profiled): New function.
+
+2015-04-23  Anton Blanchard  <anton@samba.org>
+
+	* config/rs6000/rs6000.c (rs6000_output_function_prologue): No
+	need for -mprofile-kernel to save LR to stack.
+
+2016-01-21  Anton Blanchard  <anton@samba.org>
+	    Bill Schmidt  <wschmidt@linux.vnet.ibm.com>
+
+	PR target/63354
+	* config/rs6000/linux64.h (TARGET_KEEP_LEAF_WHEN_PROFILED): New
+	#define.
+	* config/rs6000/rs6000.c (rs6000_keep_leaf_when_profiled): New
+	function.
+
+	* gcc.target/powerpc/pr63354.c:  New test.
+
+--- gcc/doc/tm.texi
++++ gcc/doc/tm.texi
+@@ -4953,6 +4953,10 @@ Define this macro if the code for function profiling should come before
+ the function prologue.  Normally, the profiling code comes after.
+ @end defmac
+ 
++@deftypefn {Target Hook} bool TARGET_KEEP_LEAF_WHEN_PROFILED (void)
++This target hook returns true if the target wants the leaf flag for the current function to stay true even if it calls mcount.  This might make sense for targets using the leaf flag only to determine whether a stack frame needs to be generated or not and for which the call to mcount is generated before the function prologue.
++@end deftypefn
++
+ @node Tail Calls
+ @subsection Permitting tail calls
+ @cindex tail calls
+--- gcc/doc/tm.texi.in
++++ gcc/doc/tm.texi.in
+@@ -3963,6 +3963,8 @@ Define this macro if the code for function profiling should come before
+ the function prologue.  Normally, the profiling code comes after.
+ @end defmac
+ 
++@hook TARGET_KEEP_LEAF_WHEN_PROFILED
++
+ @node Tail Calls
+ @subsection Permitting tail calls
+ @cindex tail calls
+--- gcc/final.c
++++ gcc/final.c
+@@ -4241,7 +4241,9 @@ leaf_function_p (void)
+ {
+   rtx insn;
+ 
+-  if (crtl->profile || profile_arc_flag)
++  /* Some back-ends (e.g. s390) want leaf functions to stay leaf
++     functions even if they call mcount.  */
++  if (crtl->profile && !targetm.keep_leaf_when_profiled ())
+     return 0;
+ 
+   for (insn = get_insns (); insn; insn = NEXT_INSN (insn))
+--- gcc/target.def
++++ gcc/target.def
+@@ -2658,6 +2658,18 @@ The default version of this hook use the target macro\n\
+  bool, (void),
+  default_profile_before_prologue)
+ 
++/* Return true if a leaf function should stay leaf even with profiling
++   enabled.  */
++DEFHOOK
++(keep_leaf_when_profiled,
++ "This target hook returns true if the target wants the leaf flag for\
++ the current function to stay true even if it calls mcount.  This might\
++ make sense for targets using the leaf flag only to determine whether a\
++ stack frame needs to be generated or not and for which the call to\
++ mcount is generated before the function prologue.",
++ bool, (void),
++ default_keep_leaf_when_profiled)
++
+ /* Modify and return the identifier of a DECL's external name,
+    originally identified by ID, as required by the target,
+    (eg, append @nn to windows32 stdcall function names).
+--- gcc/targhooks.c
++++ gcc/targhooks.c
+@@ -1447,6 +1447,15 @@ default_get_reg_raw_mode (int regno)
+   return reg_raw_mode[regno];
+ }
+ 
++/* Return true if a leaf function should stay leaf even with profiling
++   enabled.  */
++
++bool
++default_keep_leaf_when_profiled ()
++{
++  return false;
++}
++
+ /* Return true if the state of option OPTION should be stored in PCH files
+    and checked by default_pch_valid_p.  Store the option's current state
+    in STATE if so.  */
+--- gcc/targhooks.h
++++ gcc/targhooks.h
+@@ -188,6 +188,7 @@ extern section * default_function_sectio
+ 					  bool startup, bool exit);
+ extern enum machine_mode default_dwarf_frame_reg_mode (int);
+ extern enum machine_mode default_get_reg_raw_mode(int);
++extern bool default_keep_leaf_when_profiled ();
+ 
+ extern void *default_get_pch_validity (size_t *);
+ extern const char *default_pch_valid_p (const void *, size_t);
+--- gcc/config/rs6000/rs6000.c
++++ gcc/config/rs6000/rs6000.c
+@@ -24433,7 +24433,6 @@ rs6000_output_function_prologue (FILE *file,
+       gcc_assert (!TARGET_32BIT);
+ 
+       asm_fprintf (file, "\tmflr %s\n", reg_names[0]);
+-      asm_fprintf (file, "\tstd %s,16(%s)\n", reg_names[0], reg_names[1]);
+ 
+       /* In the ELFv2 ABI we have no compiler stack word.  It must be
+ 	 the resposibility of _mcount to preserve the static chain
+--- gcc/config/rs6000/linux64.h
++++ gcc/config/rs6000/linux64.h
+@@ -59,6 +59,9 @@ extern int dot_symbols;
+ 
+ #define TARGET_PROFILE_KERNEL profile_kernel
+ 
++#undef TARGET_KEEP_LEAF_WHEN_PROFILED
++#define TARGET_KEEP_LEAF_WHEN_PROFILED rs6000_keep_leaf_when_profiled
++
+ #define TARGET_USES_LINUX64_OPT 1
+ #ifdef HAVE_LD_LARGE_TOC
+ #undef TARGET_CMODEL
+--- gcc/config/rs6000/rs6000.c
++++ gcc/config/rs6000/rs6000.c
+@@ -26237,6 +26237,14 @@ rs6000_output_function_prologue (FILE *file,
+   rs6000_pic_labelno++;
+ }
+ 
++/* -mprofile-kernel code calls mcount before the function prolog,
++   so a profiled leaf function should stay a leaf function.  */
++static bool
++rs6000_keep_leaf_when_profiled ()
++{
++  return TARGET_PROFILE_KERNEL;
++}
++
+ /* Non-zero if vmx regs are restored before the frame pop, zero if
+    we restore after the pop when possible.  */
+ #define ALWAYS_RESTORE_ALTIVEC_BEFORE_POP 0
+--- /dev/null
++++ gcc/testsuite/gcc.target/powerpc/pr63354.c
+@@ -0,0 +1,12 @@
++/* Verify that we don't stack a frame for leaf functions when using
++   -pg -mprofile-kernel.  */
++
++/* { dg-do compile { target { powerpc64*-*-* } } } */
++/* { dg-options "-O2 -pg -mprofile-kernel" } */
++/* { dg-require-effective-target lp64 } */
++/* { dg-final { scan-assembler-not "mtlr" } } */
++
++int foo(void)
++{
++  return 1;
++}

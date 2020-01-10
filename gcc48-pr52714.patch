@@ -1,0 +1,76 @@
+2014-02-27  Jeff Law  <law@redhat.com>
+
+	PR rtl-optimization/52714
+	* combine.c (try_combine): When splitting an unrecognized PARALLEL
+	into two independent simple sets, if I3 is a jump, ensure the
+	pattern we place into I3 is a (set (pc) ...)
+
+	* gcc.c-torture/compile/pr52714.c: New test.
+
+2016-06-15  Jakub Jelinek  <jakub@redhat.com>
+
+	* gcc.c-torture/compile/20160615-1.c: New test.
+
+--- gcc/combine.c	(revision 208203)
++++ gcc/combine.c	(revision 208204)
+@@ -3706,6 +3706,9 @@ try_combine (rtx i3, rtx i2, rtx i1, rtx
+ #ifdef HAVE_cc0
+ 	  && !reg_referenced_p (cc0_rtx, XVECEXP (newpat, 0, 0))
+ #endif
++	  /* If I3 is a jump, ensure that set0 is a jump so that
++	     we do not create invalid RTL.  */
++	  && (!JUMP_P (i3) || SET_DEST (XVECEXP (newpat, 0, 0)) == pc_rtx)
+ 	 )
+ 	{
+ 	  newi2pat = XVECEXP (newpat, 0, 1);
+@@ -3716,6 +3719,9 @@ try_combine (rtx i3, rtx i2, rtx i1, rtx
+ #ifdef HAVE_cc0
+ 	       && !reg_referenced_p (cc0_rtx, XVECEXP (newpat, 0, 1))
+ #endif
++	       /* If I3 is a jump, ensure that set1 is a jump so that
++		  we do not create invalid RTL.  */
++	       && (!JUMP_P (i3) || SET_DEST (XVECEXP (newpat, 0, 1)) == pc_rtx)
+ 	      )
+ 	{
+ 	  newi2pat = XVECEXP (newpat, 0, 0);
+--- gcc/testsuite/gcc.c-torture/compile/pr52714.c	(revision 0)
++++ gcc/testsuite/gcc.c-torture/compile/pr52714.c	(revision 208204)
+@@ -0,0 +1,25 @@
++
++int __re_compile_fastmap(unsigned char *p)
++{
++    unsigned char **stack;
++    unsigned size;
++    unsigned avail;
++
++    stack = __builtin_alloca(5 * sizeof(unsigned char*));
++    if (stack == 0)
++	return -2;
++    size = 5;
++    avail = 0;
++
++    for (;;) {
++	switch (*p++) {
++	case 0:
++	    if (avail == size)
++		return -2;
++	    stack[avail++] = p;
++	}
++    }
++
++    return 0;
++}
++
+--- gcc/testsuite/gcc.c-torture/compile/20160615-1.c.jj	2016-06-15 11:17:54.690689056 +0200
++++ gcc/testsuite/gcc.c-torture/compile/20160615-1.c	2016-06-15 11:17:48.811765657 +0200
+@@ -0,0 +1,10 @@
++int a;
++void bar (int, unsigned, unsigned);
++
++void
++foo (unsigned x)
++{
++  unsigned b = a ? x : 0;
++  if (x || b)
++    bar (0, x, b);
++}

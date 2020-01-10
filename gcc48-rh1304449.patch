@@ -1,0 +1,496 @@
+2015-12-24  Kirill Yukhin  <kirill.yukhin@intel.com>
+
+	* common/config/i386/i386-common.c (OPTION_MASK_ISA_PKU_SET): New.
+	(OPTION_MASK_ISA_PKU_UNSET): Ditto.
+	(ix86_handle_option): Handle OPT_mpku.
+	* config.gcc: Add pkuintrin.h to i[34567]86-*-* and x86_64-*-*
+	targets.
+	* config/i386/cpuid.h (host_detect_local_cpu): Detect PKU feature.
+	* config/i386/i386-c.c (ix86_target_macros_internal): Handle PKU ISA
+	flag.
+	* config/i386/i386.c (ix86_target_string): Add "-mpku" to
+	ix86_target_opts.
+	(ix86_option_override_internal): Define PTA_PKU, mention new key
+	in skylake-avx512. Handle new ISA bits.
+	(ix86_valid_target_attribute_inner_p): Add "pku".
+	(enum ix86_builtins): Add IX86_BUILTIN_RDPKRU and IX86_BUILTIN_WRPKRU.
+	(builtin_description bdesc_special_args[]): Add new built-ins.
+	* config/i386/i386.h (define TARGET_PKU): New.
+	(define TARGET_PKU_P): Ditto.
+	* config/i386/i386.md (define_c_enum "unspecv"): Add UNSPEC_PKU.
+	(define_expand "rdpkru"): New.
+	(define_insn "*rdpkru"): Ditto.
+	(define_expand "wrpkru"): Ditto.
+	(define_insn "*wrpkru"): Ditto.
+	* config/i386/i386.opt (mpku): Ditto.
+	* config/i386/pkuintrin.h: New file.
+	* config/i386/x86intrin.h: Include pkuintrin.h
+	* doc/extend.texi: Describe new built-ins.
+	* doc/invoke.texi: Describe new switches.
+
+	* g++.dg/other/i386-2.C: Add -mpku.
+	* g++.dg/other/i386-3.C: Ditto.
+	* gcc.target/i386/rdpku-1.c: New test.
+	* gcc.target/i386/sse-12.c: Add -mpku.
+	* gcc.target/i386/sse-13.c: Ditto.
+	* gcc.target/i386/sse-22.c: Ditto.
+	* gcc.target/i386/sse-33.c: Ditto.
+	* gcc.target/i386/wrpku-1.c: New test.
+
+--- gcc/config.gcc	(revision 231943)
++++ gcc/config.gcc	(revision 231945)
+@@ -368,7 +368,7 @@ i[34567]86-*-*)
+ 		       lzcntintrin.h bmiintrin.h bmi2intrin.h tbmintrin.h
+ 		       avx2intrin.h fmaintrin.h f16cintrin.h rtmintrin.h
+ 		       xtestintrin.h rdseedintrin.h prfchwintrin.h adxintrin.h
+-		       fxsrintrin.h xsaveintrin.h xsaveoptintrin.h"
++		       fxsrintrin.h xsaveintrin.h xsaveoptintrin.h pkuintrin.h"
+ 	;;
+ x86_64-*-*)
+ 	cpu_type=i386
+@@ -383,7 +383,7 @@ x86_64-*-*)
+ 		       lzcntintrin.h bmiintrin.h tbmintrin.h bmi2intrin.h
+ 		       avx2intrin.h fmaintrin.h f16cintrin.h rtmintrin.h
+ 		       xtestintrin.h rdseedintrin.h prfchwintrin.h adxintrin.h
+-		       fxsrintrin.h xsaveintrin.h xsaveoptintrin.h"
++		       fxsrintrin.h xsaveintrin.h xsaveoptintrin.h pkuintrin.h"
+ 	need_64bit_hwint=yes
+ 	;;
+ ia64-*-*)
+--- gcc/common/config/i386/i386-common.c	(revision 231943)
++++ gcc/common/config/i386/i386-common.c	(revision 231945)
+@@ -98,6 +98,7 @@ along with GCC; see the file COPYING3.
+ #define OPTION_MASK_ISA_RDRND_SET OPTION_MASK_ISA_RDRND
+ #define OPTION_MASK_ISA_F16C_SET \
+   (OPTION_MASK_ISA_F16C | OPTION_MASK_ISA_AVX_SET)
++#define OPTION_MASK_ISA_PKU_SET OPTION_MASK_ISA_PKU
+ 
+ /* Define a set of ISAs which aren't available when a given ISA is
+    disabled.  MMX and SSE ISAs are handled separately.  */
+@@ -164,6 +165,7 @@ along with GCC; see the file COPYING3.
+ #define OPTION_MASK_ISA_FSGSBASE_UNSET OPTION_MASK_ISA_FSGSBASE
+ #define OPTION_MASK_ISA_RDRND_UNSET OPTION_MASK_ISA_RDRND
+ #define OPTION_MASK_ISA_F16C_UNSET OPTION_MASK_ISA_F16C
++#define OPTION_MASK_ISA_PKU_UNSET OPTION_MASK_ISA_PKU
+ 
+ /* Implement TARGET_HANDLE_OPTION.  */
+ 
+@@ -659,6 +661,19 @@ ix86_handle_option (struct gcc_options *
+ 	}
+       return true;
+ 
++    case OPT_mpku:
++      if (value)
++	{
++	  opts->x_ix86_isa_flags |= OPTION_MASK_ISA_PKU_SET;
++	  opts->x_ix86_isa_flags_explicit |= OPTION_MASK_ISA_PKU_SET;
++	}
++      else
++	{
++	  opts->x_ix86_isa_flags &= ~OPTION_MASK_ISA_PKU_UNSET;
++	  opts->x_ix86_isa_flags_explicit |= OPTION_MASK_ISA_PKU_UNSET;
++	}
++      return true;
++
+   /* Comes from final.c -- no real reason to change it.  */
+ #define MAX_CODE_ALIGN 16
+ 
+--- gcc/config/i386/i386.h	(revision 231943)
++++ gcc/config/i386/i386.h	(revision 231945)
+@@ -80,6 +80,7 @@ see the files COPYING3 and COPYING.RUNTI
+ #define TARGET_FXSR	TARGET_ISA_FXSR
+ #define TARGET_XSAVE	TARGET_ISA_XSAVE
+ #define TARGET_XSAVEOPT	TARGET_ISA_XSAVEOPT
++#define TARGET_PKU	TARGET_ISA_PKU
+ 
+ #define TARGET_LP64	TARGET_ABI_64
+ #define TARGET_X32	TARGET_ABI_X32
+--- gcc/config/i386/i386.md	(revision 231943)
++++ gcc/config/i386/i386.md	(revision 231945)
+@@ -224,6 +224,9 @@ (define_c_enum "unspecv" [
+   UNSPECV_XTEST
+ 
+   UNSPECV_NLGR
++
++  ;; For RDPKRU and WRPKRU support
++  UNSPECV_PKU
+ ])
+ 
+ ;; Constants to represent rounding modes in the ROUND instruction
+@@ -18289,6 +18292,48 @@ (define_insn "xtest_1"
+   [(set_attr "type" "other")
+    (set_attr "length" "3")])
+ 
++;; RDPKRU and WRPKRU
++
++(define_expand "rdpkru"
++  [(parallel
++     [(set (match_operand:SI 0 "register_operand")
++	   (unspec_volatile:SI [(match_dup 1)] UNSPECV_PKU))
++      (set (match_dup 2) (const_int 0))])]
++  "TARGET_PKU"
++{
++  operands[1] = force_reg (SImode, const0_rtx);
++  operands[2] = gen_reg_rtx (SImode);
++})
++
++(define_insn "*rdpkru"
++  [(set (match_operand:SI 0 "register_operand" "=a")
++	(unspec_volatile:SI [(match_operand:SI 2 "register_operand" "c")]
++			    UNSPECV_PKU))
++   (set (match_operand:SI 1 "register_operand" "=d")
++	(const_int 0))]
++  "TARGET_PKU"
++  "rdpkru"
++  [(set_attr "type" "other")])
++
++(define_expand "wrpkru"
++  [(unspec_volatile:SI
++     [(match_operand:SI 0 "register_operand")
++      (match_dup 1) (match_dup 2)] UNSPECV_PKU)]
++  "TARGET_PKU"
++{
++  operands[1] = force_reg (SImode, const0_rtx);
++  operands[2] = force_reg (SImode, const0_rtx);
++})
++
++(define_insn "*wrpkru"
++  [(unspec_volatile:SI
++     [(match_operand:SI 0 "register_operand" "a")
++      (match_operand:SI 1 "register_operand" "d")
++      (match_operand:SI 2 "register_operand" "c")] UNSPECV_PKU)]
++  "TARGET_PKU"
++  "wrpkru"
++  [(set_attr "type" "other")])
++
+ (include "mmx.md")
+ (include "sse.md")
+ (include "sync.md")
+--- gcc/config/i386/pkuintrin.h	(revision 0)
++++ gcc/config/i386/pkuintrin.h	(revision 231945)
+@@ -0,0 +1,45 @@
++/* Copyright (C) 2015 Free Software Foundation, Inc.
++
++   This file is part of GCC.
++
++   GCC is free software; you can redistribute it and/or modify
++   it under the terms of the GNU General Public License as published by
++   the Free Software Foundation; either version 3, or (at your option)
++   any later version.
++
++   GCC is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++   GNU General Public License for more details.
++
++   Under Section 7 of GPL version 3, you are granted additional
++   permissions described in the GCC Runtime Library Exception, version
++   3.1, as published by the Free Software Foundation.
++
++   You should have received a copy of the GNU General Public License and
++   a copy of the GCC Runtime Library Exception along with this program;
++   see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
++   <http://www.gnu.org/licenses/>.  */
++
++#if !defined _X86INTRIN_H_INCLUDED
++# error "Never use <pkuintrin.h> directly; include <x86intrin.h> instead."
++#endif
++
++#ifndef _PKUINTRIN_H_INCLUDED
++#define _PKUINTRIN_H_INCLUDED
++
++extern __inline unsigned int
++__attribute__((__gnu_inline__, __always_inline__, __artificial__))
++_rdpkru_u32(void)
++{
++  return __builtin_ia32_rdpkru ();
++}
++
++extern __inline void
++__attribute__((__gnu_inline__, __always_inline__, __artificial__))
++_wrpkru(unsigned int key)
++{
++  return __builtin_ia32_wrpkru (key);
++}
++
++#endif /* _PKUINTRIN_H_INCLUDED */
+--- gcc/config/i386/cpuid.h	(revision 231943)
++++ gcc/config/i386/cpuid.h	(revision 231945)
+@@ -74,6 +74,10 @@
+ #define bit_RDSEED	(1 << 18)
+ #define bit_ADX	(1 << 19)
+ 
++/* %ecx */
++#define bit_PKU	(1 << 3)
++#define bit_OSPKE	(1 << 4)
++ 
+ /* Extended State Enumeration Sub-leaf (%eax == 13, %ecx == 1) */
+ #define bit_XSAVEOPT	(1 << 0)
+ 
+--- gcc/config/i386/x86intrin.h	(revision 231943)
++++ gcc/config/i386/x86intrin.h	(revision 231945)
+@@ -119,4 +119,8 @@
+ 
+ #include <adxintrin.h>
+ 
++#ifdef __PKU__
++#include <pkuintrin.h>
++#endif
++
+ #endif /* _X86INTRIN_H_INCLUDED */
+--- gcc/config/i386/i386-c.c	(revision 231943)
++++ gcc/config/i386/i386-c.c	(revision 231945)
+@@ -348,6 +348,8 @@ ix86_target_macros_internal (HOST_WIDE_I
+     def_or_undef (parse_in, "__XSAVE__");
+   if (isa_flag & OPTION_MASK_ISA_XSAVEOPT)
+     def_or_undef (parse_in, "__XSAVEOPT__");
++  if (isa_flag & OPTION_MASK_ISA_PKU)
++    def_or_undef (parse_in, "__PKU__");
+   if ((fpmath & FPMATH_SSE) && (isa_flag & OPTION_MASK_ISA_SSE))
+     def_or_undef (parse_in, "__SSE_MATH__");
+   if ((fpmath & FPMATH_SSE) && (isa_flag & OPTION_MASK_ISA_SSE2))
+--- gcc/config/i386/i386.opt	(revision 231943)
++++ gcc/config/i386/i386.opt	(revision 231945)
+@@ -626,3 +626,7 @@ Split 32-byte AVX unaligned store
+ mrtm
+ Target Report Mask(ISA_RTM) Var(ix86_isa_flags) Save
+ Support RTM built-in functions and code generation
++
++mpku
++Target Report Mask(ISA_PKU) Var(ix86_isa_flags) Save
++Support PKU built-in functions and code generation
+--- gcc/config/i386/driver-i386.c	(revision 231943)
++++ gcc/config/i386/driver-i386.c	(revision 231945)
+@@ -408,6 +408,7 @@ const char *host_detect_local_cpu (int a
+   unsigned int has_rdrnd = 0, has_f16c = 0, has_fsgsbase = 0;
+   unsigned int has_rdseed = 0, has_prfchw = 0, has_adx = 0;
+   unsigned int has_osxsave = 0, has_fxsr = 0, has_xsave = 0, has_xsaveopt = 0;
++  unsigned int has_pku = 0;
+ 
+   bool arch;
+ 
+@@ -479,6 +480,8 @@ const char *host_detect_local_cpu (int a
+       has_fsgsbase = ebx & bit_FSGSBASE;
+       has_rdseed = ebx & bit_RDSEED;
+       has_adx = ebx & bit_ADX;
++
++      has_pku = ecx & bit_OSPKE;
+     }
+ 
+   if (max_level >= 13)
+@@ -855,12 +858,13 @@ const char *host_detect_local_cpu (int a
+       const char *fxsr = has_fxsr ? " -mfxsr" : " -mno-fxsr";
+       const char *xsave = has_xsave ? " -mxsave" : " -mno-xsave";
+       const char *xsaveopt = has_xsaveopt ? " -mxsaveopt" : " -mno-xsaveopt";
++      const char *pku = has_pku ? " -mpku" : " -mno-pku";
+ 
+       options = concat (options, cx16, sahf, movbe, ase, pclmul,
+ 			popcnt, abm, lwp, fma, fma4, xop, bmi, bmi2,
+ 			tbm, avx, avx2, sse4_2, sse4_1, lzcnt, rtm,
+ 			hle, rdrnd, f16c, fsgsbase, rdseed, prfchw, adx,
+-			fxsr, xsave, xsaveopt, NULL);
++			fxsr, xsave, xsaveopt, pku, NULL);
+     }
+ 
+ done:
+--- gcc/config/i386/i386.c	(revision 231943)
++++ gcc/config/i386/i386.c	(revision 231945)
+@@ -2632,6 +2632,7 @@ ix86_target_string (HOST_WIDE_INT isa, i
+     { "-mrtm",		OPTION_MASK_ISA_RTM },
+     { "-mxsave",	OPTION_MASK_ISA_XSAVE },
+     { "-mxsaveopt",	OPTION_MASK_ISA_XSAVEOPT },
++    { "-mpku",		OPTION_MASK_ISA_PKU },
+   };
+ 
+   /* Flag options.  */
+@@ -2905,6 +2906,7 @@ ix86_option_override_internal (bool main
+ #define PTA_FXSR		(HOST_WIDE_INT_1 << 37)
+ #define PTA_XSAVE		(HOST_WIDE_INT_1 << 38)
+ #define PTA_XSAVEOPT		(HOST_WIDE_INT_1 << 39)
++#define PTA_PKU			(HOST_WIDE_INT_1 << 60)
+ 
+ /* if this reaches 64, need to widen struct pta flags below */
+ 
+@@ -3429,6 +3431,9 @@ ix86_option_override_internal (bool main
+ 	if (processor_alias_table[i].flags & PTA_XSAVEOPT
+ 	    && !(ix86_isa_flags_explicit & OPTION_MASK_ISA_XSAVEOPT))
+ 	  ix86_isa_flags |= OPTION_MASK_ISA_XSAVEOPT;
++	if (processor_alias_table[i].flags & PTA_PKU
++	    && !(ix86_isa_flags_explicit & OPTION_MASK_ISA_PKU))
++	  ix86_isa_flags |= OPTION_MASK_ISA_PKU;
+ 	if (processor_alias_table[i].flags & (PTA_PREFETCH_SSE | PTA_SSE))
+ 	  x86_prefetch_sse = true;
+ 
+@@ -4220,6 +4225,7 @@ ix86_valid_target_attribute_inner_p (tre
+     IX86_ATTR_ISA ("fxsr",	OPT_mfxsr),
+     IX86_ATTR_ISA ("xsave",	OPT_mxsave),
+     IX86_ATTR_ISA ("xsaveopt",	OPT_mxsaveopt),
++    IX86_ATTR_ISA ("pku",	OPT_mpku),
+ 
+     /* enum options */
+     IX86_ATTR_ENUM ("fpmath=",	OPT_mfpmath_),
+@@ -27042,6 +27048,10 @@ enum ix86_builtins
+   IX86_BUILTIN_CPU_IS,
+   IX86_BUILTIN_CPU_SUPPORTS,
+ 
++  /* PKU instructions.  */
++  IX86_BUILTIN_RDPKRU,
++  IX86_BUILTIN_WRPKRU,
++
+   IX86_BUILTIN_MAX
+ };
+ 
+@@ -27357,6 +27367,10 @@ static const struct builtin_description
+   { OPTION_MASK_ISA_RTM, CODE_FOR_xbegin, "__builtin_ia32_xbegin", IX86_BUILTIN_XBEGIN, UNKNOWN, (int) UNSIGNED_FTYPE_VOID },
+   { OPTION_MASK_ISA_RTM, CODE_FOR_xend, "__builtin_ia32_xend", IX86_BUILTIN_XEND, UNKNOWN, (int) VOID_FTYPE_VOID },
+   { OPTION_MASK_ISA_RTM, CODE_FOR_xtest, "__builtin_ia32_xtest", IX86_BUILTIN_XTEST, UNKNOWN, (int) INT_FTYPE_VOID },
++
++  /* RDPKRU and WRPKRU.  */
++  { OPTION_MASK_ISA_PKU, CODE_FOR_rdpkru, "__builtin_ia32_rdpkru", IX86_BUILTIN_RDPKRU, UNKNOWN, (int) UNSIGNED_FTYPE_VOID },
++  { OPTION_MASK_ISA_PKU, CODE_FOR_wrpkru, "__builtin_ia32_wrpkru", IX86_BUILTIN_WRPKRU, UNKNOWN, (int) VOID_FTYPE_UNSIGNED },
+ };
+ 
+ /* Builtins with variable number of arguments.  */
+--- gcc/doc/extend.texi	(revision 231943)
++++ gcc/doc/extend.texi	(revision 231945)
+@@ -10996,6 +10996,13 @@ void __builtin_ia32_xabort (status)
+ int __builtin_ia32_xtest ()
+ @end smallexample
+ 
++The following built-in functions are available when @option{-mpku} is used.
++They generate reads and writes to PKRU.
++@smallexample
++void __builtin_ia32_wrpkru (unsigned int)
++unsigned int __builtin_ia32_rdpkru ()
++@end smallexample
++
+ @node X86 transactional memory intrinsics
+ @subsection X86 transaction memory intrinsics
+ 
+--- gcc/doc/invoke.texi	(revision 231943)
++++ gcc/doc/invoke.texi	(revision 231945)
+@@ -645,7 +645,7 @@ Objective-C and Objective-C++ Dialects}.
+ -mmmx  -msse  -msse2 -msse3 -mssse3 -msse4.1 -msse4.2 -msse4 -mavx @gol
+ -mavx2 -maes -mpclmul -mfsgsbase -mrdrnd -mf16c -mfma @gol
+ -msse4a -m3dnow -mpopcnt -mabm -mbmi -mtbm -mfma4 -mxop -mlzcnt @gol
+--mbmi2 -mrtm -mlwp -mthreads @gol
++-mbmi2 -mrtm -mlwp -mpku -mthreads @gol
+ -mno-align-stringops  -minline-all-stringops @gol
+ -minline-stringops-dynamically -mstringop-strategy=@var{alg} @gol
+ -mpush-args  -maccumulate-outgoing-args  -m128bit-long-double @gol
+@@ -14326,6 +14326,8 @@ preferred alignment to @option{-mpreferr
+ @itemx -mlzcnt
+ @itemx -mno-lzcnt
+ @itemx -mrtm
++@itemx -mpku
++@itemx -mno-pku
+ @itemx -mtbm
+ @itemx -mno-tbm
+ @opindex mmmx
+@@ -14336,7 +14338,7 @@ preferred alignment to @option{-mpreferr
+ @opindex mno-3dnow
+ These switches enable or disable the use of instructions in the MMX, SSE,
+ SSE2, SSE3, SSSE3, SSE4.1, AVX, AVX2, AES, PCLMUL, FSGSBASE, RDRND, F16C,
+-FMA, SSE4A, FMA4, XOP, LWP, ABM, BMI, BMI2, LZCNT, RTM or 3DNow!@:
++FMA, SSE4A, FMA4, XOP, LWP, ABM, BMI, BMI2, LZCNT, RTM, PKU or 3DNow!@:
+ extended instruction sets.
+ These extensions are also available as built-in functions: see
+ @ref{X86 Built-in Functions}, for details of the functions enabled and
+--- gcc/testsuite/gcc.target/i386/sse-12.c	(revision 231943)
++++ gcc/testsuite/gcc.target/i386/sse-12.c	(revision 231945)
+@@ -3,7 +3,7 @@
+    popcntintrin.h and mm_malloc.h are usable
+    with -O -std=c89 -pedantic-errors.  */
+ /* { dg-do compile } */
+-/* { dg-options "-O -std=c89 -pedantic-errors -march=k8 -msse4a -m3dnow -mavx -mavx2 -mfma4 -mxop -maes -mpclmul -mpopcnt -mabm -mlzcnt -mbmi -mbmi2 -mtbm -mlwp -mfsgsbase -mrdrnd -mf16c -mfma -mrtm -mrdseed -mprfchw -madx -mfxsr -mxsaveopt" } */
++/* { dg-options "-O -std=c89 -pedantic-errors -march=k8 -msse4a -m3dnow -mavx -mavx2 -mfma4 -mxop -maes -mpclmul -mpopcnt -mabm -mlzcnt -mbmi -mbmi2 -mtbm -mlwp -mfsgsbase -mrdrnd -mf16c -mfma -mrtm -mrdseed -mprfchw -madx -mfxsr -mxsaveopt -mpku" } */
+ 
+ #include <x86intrin.h>
+ 
+--- gcc/testsuite/gcc.target/i386/sse-13.c	(revision 231943)
++++ gcc/testsuite/gcc.target/i386/sse-13.c	(revision 231945)
+@@ -1,5 +1,5 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -Werror-implicit-function-declaration -march=k8 -msse4a -m3dnow -mavx -mavx2 -mfma4 -mxop -maes -mpclmul -mpopcnt -mabm -mlzcnt -mbmi -mbmi2 -mtbm -mlwp -mfsgsbase -mrdrnd -mf16c -mfma -mrtm -mrdseed -mprfchw -madx -mfxsr -mxsaveopt" } */
++/* { dg-options "-O2 -Werror-implicit-function-declaration -march=k8 -msse4a -m3dnow -mavx -mavx2 -mfma4 -mxop -maes -mpclmul -mpopcnt -mabm -mlzcnt -mbmi -mbmi2 -mtbm -mlwp -mfsgsbase -mrdrnd -mf16c -mfma -mrtm -mrdseed -mprfchw -madx -mfxsr -mxsaveopt -mpku" } */
+ 
+ #include <mm_malloc.h>
+ 
+--- gcc/testsuite/gcc.target/i386/sse-22.c	(revision 231943)
++++ gcc/testsuite/gcc.target/i386/sse-22.c	(revision 231945)
+@@ -268,7 +268,7 @@ test_2 (_mm_clmulepi64_si128, __m128i, _
+ 
+ /* x86intrin.h (FMA4/XOP/LWP/BMI/BMI2/TBM/LZCNT/FMA). */
+ #ifdef DIFFERENT_PRAGMAS
+-#pragma GCC target ("fma4,xop,lwp,bmi,bmi2,tbm,lzcnt,fma,rdseed,prfchw,adx,fxsr,xsaveopt")
++#pragma GCC target ("fma4,xop,lwp,bmi,bmi2,tbm,lzcnt,fma,rdseed,prfchw,adx,fxsr,xsaveopt,pku")
+ #endif
+ #include <x86intrin.h>
+ /* xopintrin.h */
+--- gcc/testsuite/gcc.target/i386/sse-23.c	(revision 231943)
++++ gcc/testsuite/gcc.target/i386/sse-23.c	(revision 231945)
+@@ -183,7 +183,7 @@
+ /* rtmintrin.h */
+ #define __builtin_ia32_xabort(M) __builtin_ia32_xabort(1)
+ 
+-#pragma GCC target ("sse4a,3dnow,avx,avx2,fma4,xop,aes,pclmul,popcnt,abm,lzcnt,bmi,bmi2,tbm,lwp,fsgsbase,rdrnd,f16c,fma,rtm,rdseed,prfchw,adx,fxsr,xsaveopt")
++#pragma GCC target ("sse4a,3dnow,avx,avx2,fma4,xop,aes,pclmul,popcnt,abm,lzcnt,bmi,bmi2,tbm,lwp,fsgsbase,rdrnd,f16c,fma,rtm,rdseed,prfchw,adx,fxsr,xsaveopt,pku")
+ #include <wmmintrin.h>
+ #include <smmintrin.h>
+ #include <mm3dnow.h>
+--- gcc/testsuite/gcc.target/i386/rdpku-1.c	(revision 0)
++++ gcc/testsuite/gcc.target/i386/rdpku-1.c	(revision 231945)
+@@ -0,0 +1,11 @@
++/* { dg-do compile } */
++/* { dg-options "-mpku -O2" } */
++/* { dg-final { scan-assembler "rdpkru\n" } } */
++
++#include <x86intrin.h>
++
++unsigned extern
++rdpku_test (void)
++{
++  return _rdpkru_u32 ();
++}
+--- gcc/testsuite/gcc.target/i386/wrpku-1.c	(revision 0)
++++ gcc/testsuite/gcc.target/i386/wrpku-1.c	(revision 231945)
+@@ -0,0 +1,11 @@
++/* { dg-do compile } */
++/* { dg-options "-mpku -O2" } */
++/* { dg-final { scan-assembler "wrpkru\n" } } */
++
++#include <x86intrin.h>
++
++void extern
++wrpku_test (unsigned int key)
++{
++  _wrpkru (key);
++}
+--- gcc/testsuite/g++.dg/other/i386-2.C	(revision 231943)
++++ gcc/testsuite/g++.dg/other/i386-2.C	(revision 231945)
+@@ -1,9 +1,9 @@
+ /* { dg-do compile { target i?86-*-* x86_64-*-* } } */
+-/* { dg-options "-O -pedantic-errors -march=k8 -msse4a -m3dnow -mavx -mavx2 -mfma4 -mxop -maes -mpclmul -mpopcnt -mabm -mlzcnt -mbmi -mbmi2 -mtbm -mlwp -mfsgsbase -mrdrnd -mf16c -mfma -mrtm -mrdseed -mprfchw -madx -mfxsr -mxsaveopt" } */
++/* { dg-options "-O -pedantic-errors -march=k8 -msse4a -m3dnow -mavx -mavx2 -mfma4 -mxop -maes -mpclmul -mpopcnt -mabm -mlzcnt -mbmi -mbmi2 -mtbm -mlwp -mfsgsbase -mrdrnd -mf16c -mfma -mrtm -mrdseed -mprfchw -madx -mfxsr -mxsaveopt -mpku" } */
+ 
+ /* Test that {,x,e,p,t,s,w,a,b,i}mmintrin.h, mm3dnow.h, fma4intrin.h,
+    xopintrin.h, abmintrin.h, bmiintrin.h, tbmintrin.h, lwpintrin.h,
+-   popcntintrin.h, fmaintrin.h and mm_malloc.h.h are usable with 
++   popcntintrin.h, fmaintrin.h, pkuintrin.h and mm_malloc.h.h are usable with 
+    -O -pedantic-errors.  */
+ 
+ #include <x86intrin.h>
+--- gcc/testsuite/g++.dg/other/i386-3.C	(revision 231943)
++++ gcc/testsuite/g++.dg/other/i386-3.C	(revision 231945)
+@@ -1,9 +1,9 @@
+ /* { dg-do compile { target i?86-*-* x86_64-*-* } } */
+-/* { dg-options "-O -fkeep-inline-functions -march=k8 -msse4a -m3dnow -mavx -mavx2 -mfma4 -mxop -maes -mpclmul -mpopcnt -mabm -mlzcnt -mbmi -mbmi2 -mtbm -mlwp -mfsgsbase -mrdrnd -mf16c -mfma -mrtm -mrdseed -mprfchw -madx -mfxsr -mxsaveopt" } */
++/* { dg-options "-O -fkeep-inline-functions -march=k8 -msse4a -m3dnow -mavx -mavx2 -mfma4 -mxop -maes -mpclmul -mpopcnt -mabm -mlzcnt -mbmi -mbmi2 -mtbm -mlwp -mfsgsbase -mrdrnd -mf16c -mfma -mrtm -mrdseed -mprfchw -madx -mfxsr -mxsaveopt -mpku" } */
+ 
+ /* Test that {,x,e,p,t,s,w,a,b,i}mmintrin.h, mm3dnow.h, fma4intrin.h,
+    xopintrin.h, abmintrin.h, bmiintrin.h, tbmintrin.h, lwpintrin.h,
+-   popcntintrin.h, fmaintrin.h and mm_malloc.h are usable with
++   popcntintrin.h, fmaintrin.h, pkuintrin.h and mm_malloc.h are usable with
+    -O -fkeep-inline-functions.  */
+ 
+ #include <x86intrin.h>

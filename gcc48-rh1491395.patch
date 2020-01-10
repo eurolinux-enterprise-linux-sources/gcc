@@ -1,0 +1,177 @@
+2016-01-16  Torvald Riegel  <triegel@redhat.com>
+
+	* method-gl.cc (gl_wt_dispatch::trycommit): Ensure proxy privatization
+	safety.
+	* method-ml.cc (ml_wt_dispatch::trycommit): Likewise.
+	* libitm/testsuite/libitm.c/priv-1.c: New.
+
+--- libitm/method-gl.cc
++++ libitm/method-gl.cc
+@@ -291,12 +291,18 @@ public:
+         // See begin_or_restart() for why we need release memory order here.
+ 	v = gl_mg::clear_locked(v) + 1;
+ 	o_gl_mg.orec.store(v, memory_order_release);
+-
+-	// Need to ensure privatization safety. Every other transaction must
+-	// have a snapshot time that is at least as high as our commit time
+-	// (i.e., our commit must be visible to them).
+-	priv_time = v;
+       }
++
++    // Need to ensure privatization safety. Every other transaction must have
++    // a snapshot time that is at least as high as our commit time (i.e., our
++    // commit must be visible to them).  Because of proxy privatization, we
++    // must ensure that even if we are a read-only transaction.  See
++    // ml_wt_dispatch::trycommit() for details: We can't get quite the same
++    // set of problems because we just use one orec and thus, for example,
++    // there cannot be concurrent writers -- but we can still get pending
++    // loads to privatized data when not ensuring privatization safety, which
++    // is problematic if the program unmaps the privatized memory.
++    priv_time = v;
+     return true;
+   }
+ 
+--- libitm/method-ml.cc
++++ libitm/method-ml.cc
+@@ -513,6 +513,21 @@ public:
+     if (!tx->writelog.size())
+       {
+         tx->readlog.clear();
++        // We still need to ensure privatization safety, unfortunately.  While
++        // we cannot have privatized anything by ourselves (because we are not
++        // an update transaction), we can have observed the commits of
++        // another update transaction that privatized something.  Because any
++        // commit happens before ensuring privatization, our snapshot and
++        // commit can thus have happened before ensuring privatization safety
++        // for this commit/snapshot time.  Therefore, before we can return to
++        // nontransactional code that might use the privatized data, we must
++        // ensure privatization safety for our snapshot time.
++        // This still seems to be better than not allowing use of the
++        // snapshot time before privatization safety has been ensured because
++        // we at least can run transactions such as this one, and in the
++        // meantime the transaction producing this commit time might have
++        // finished ensuring privatization safety for it.
++        priv_time = tx->shared_state.load(memory_order_relaxed);
+         return true;
+       }
+ 
+--- /dev/null
++++ libitm/testsuite/libitm.c/priv-1.c
+@@ -0,0 +1,117 @@
++/* Quick stress test for proxy privatization.  */
++
++/* We need to use a TM method that has to enforce privatization safety
++   explicitly.  */
++/* { dg-set-target-env-var ITM_DEFAULT_METHOD "ml_wt" } */
++/* { dg-options "-std=gnu11" } */
++
++#include <stdlib.h>
++#include <stdio.h>
++#include <pthread.h>
++
++/* Make them likely to be mapped to different orecs.  */
++#define ALIGN __attribute__((aligned (256)))
++/* Don't make these static to work around PR 68591.  */
++int x ALIGN;
++int *ptr ALIGN;
++int *priv_ptr ALIGN;
++int priv_value ALIGN;
++int barrier ALIGN = 0;
++const int iters = 100;
++
++static void arrive_and_wait (int expected_value)
++{
++  int now = __atomic_add_fetch (&barrier, 1, __ATOMIC_ACQ_REL);
++  while (now < expected_value)
++    __atomic_load (&barrier, &now, __ATOMIC_ACQUIRE);
++}
++
++static void __attribute__((transaction_pure,noinline)) delay (int i)
++{
++  for (volatile int v = 0; v < i; v++);
++}
++
++/* This tries to catch a case in which proxy privatization safety is not
++   ensured by privatization_user.  Specifically, it's access to the value
++   of it's transactional snapshot of ptr must read from an uncommitted write
++   by writer; thus, writer must still be active but must have read ptr before
++   proxy can privatize *ptr by assigning to ptr.
++   We try to make this interleaving more likely by delaying the commit of
++   writer and the start of proxy.  */
++static void *writer (void *dummy __attribute__((unused)))
++{
++  for (int i = 0; i < iters; i++)
++    {
++      /* Initialize state in each round.  */
++      x = 0;
++      ptr = &x;
++      priv_ptr = NULL;
++      int wrote = 1;
++      arrive_and_wait (i * 6 + 3);
++      /* Interference by another writer.  Has a conflict with the proxy
++	 privatizer.  */
++      __transaction_atomic
++	{
++	  if (ptr != NULL)
++	    *ptr = 1;
++	  else
++	    wrote = 0;
++	  delay (2000000);
++	}
++      arrive_and_wait (i * 6 + 6);
++      /* If the previous transaction committed first, wrote == 1 and x == 1;
++	 otherwise, if the proxy came first, wrote == 0 and priv_value == 0.
++       */
++      if (wrote != priv_value)
++	abort ();
++    }
++  return NULL;
++}
++
++static void *proxy (void *dummy __attribute__((unused)))
++{
++  for (int i = 0; i < iters; i++)
++    {
++      arrive_and_wait (i * 6 + 3);
++      delay(1000000);
++      __transaction_atomic
++	{
++	  /* Hand-off to privatization-user and its read-only transaction and
++	     subsequent use of privatization.  */
++	  priv_ptr = ptr;
++	  ptr = NULL;
++	}
++      arrive_and_wait (i * 6 + 6);
++    }
++  return NULL;
++}
++
++static void *privatization_user (void *dummy __attribute__((unused)))
++{
++  for (int i = 0; i < iters; i++)
++    {
++      arrive_and_wait (i * 6 + 3);
++      /* Spin until we have gotten a pointer from the proxy.  Then access
++	 the value pointed to nontransactionally.  */
++      int *p = NULL;
++      while (p == NULL)
++	__transaction_atomic { p = priv_ptr; }
++      priv_value = *p;
++      arrive_and_wait (i * 6 + 6);
++    }
++  return NULL;
++}
++
++int main()
++{
++  pthread_t p[3];
++
++  pthread_create (p+0, NULL, writer, NULL);
++  pthread_create (p+1, NULL, proxy, NULL);
++  pthread_create (p+2, NULL, privatization_user, NULL);
++
++  for (int i = 0; i < 3; ++i)
++    pthread_join  (p[i], NULL);
++
++  return 0;
++}

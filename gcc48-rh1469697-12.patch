@@ -1,0 +1,47 @@
+commit 15d5202e75021f2c41b8a1cb344c04b8915e9d4e
+Author: law <law@138bc75d-0d04-0410-961f-82ee72b054a4>
+Date:   Sun Oct 8 15:44:39 2017 +0000
+
+            * gcc.dg/stack-check-5.c: Skip with -fstack-protector.
+            * gcc.dg/stack-check-6.c: Likewise.
+            * gcc.dg/stack-check-6a.c: Likewise.
+    
+    git-svn-id: svn+ssh://gcc.gnu.org/svn/gcc/trunk@253527 138bc75d-0d04-0410-961f-82ee72b054a4
+
+diff --git a/gcc/testsuite/gcc.dg/stack-check-5.c b/gcc/testsuite/gcc.dg/stack-check-5.c
+index 3178f5d8ce5..850e023ea4e 100644
+--- a/gcc/testsuite/gcc.dg/stack-check-5.c
++++ b/gcc/testsuite/gcc.dg/stack-check-5.c
+@@ -1,6 +1,7 @@
+ /* { dg-do compile } */
+ /* { dg-options "-O2 -fstack-clash-protection -fdump-rtl-pro_and_epilogue -fno-optimize-sibling-calls --param stack-clash-protection-probe-interval=12 --param stack-clash-protection-guard-size=12" } */
+ /* { dg-require-effective-target supports_stack_clash_protection } */
++/* { dg-skip-if "" { *-*-* } { "-fstack-protector" } { "" } } */
+ 
+ 
+ /* Otherwise the S/390 back-end might save the stack pointer in f2 ()
+diff --git a/gcc/testsuite/gcc.dg/stack-check-6.c b/gcc/testsuite/gcc.dg/stack-check-6.c
+index ad2021c9037..ab4b0e8894c 100644
+--- a/gcc/testsuite/gcc.dg/stack-check-6.c
++++ b/gcc/testsuite/gcc.dg/stack-check-6.c
+@@ -1,6 +1,7 @@
+ /* { dg-do compile } */
+ /* { dg-options "-O2 -fstack-clash-protection -fdump-rtl-pro_and_epilogue -fno-optimize-sibling-calls --param stack-clash-protection-probe-interval=12 --param stack-clash-protection-guard-size=12" } */
+ /* { dg-require-effective-target supports_stack_clash_protection } */
++/* { dg-skip-if "" { *-*-* } { "-fstack-protector" } { "" } } */
+ 
+ 
+ extern void foo (char *);
+diff --git a/gcc/testsuite/gcc.dg/stack-check-6a.c b/gcc/testsuite/gcc.dg/stack-check-6a.c
+index 6f8e7128921..468d649a4fa 100644
+--- a/gcc/testsuite/gcc.dg/stack-check-6a.c
++++ b/gcc/testsuite/gcc.dg/stack-check-6a.c
+@@ -4,6 +4,8 @@
+ /* { dg-do compile  } */
+ /* { dg-options "-O2 -fstack-clash-protection -fdump-rtl-pro_and_epilogue -fno-optimize-sibling-calls --param stack-clash-protection-probe-interval=12 --param stack-clash-protection-guard-size=16" } */
+ /* { dg-require-effective-target supports_stack_clash_protection  } */
++/* { dg-skip-if "" { *-*-* } { "-fstack-protector" } { "" } } */
++
+ 
+ #include "stack-check-6.c"
+ 

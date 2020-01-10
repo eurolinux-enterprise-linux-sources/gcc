@@ -1,0 +1,59 @@
+2017-02-28  Jakub Jelinek  <jakub@redhat.com>
+
+	Backport from mainline
+	2015-12-02  Jan Hubicka  <hubicka@ucw.cz>
+
+	PR ipa/68184
+	* cgraphunit.c (cgraph_node::analyze): Set can_throw_external.
+
+	* g++.dg/torture/pr68184.C: New testcase.
+
+--- gcc/cgraphunit.c.jj	2014-09-10 09:15:51.000000000 +0200
++++ gcc/cgraphunit.c	2017-02-28 08:24:44.387385510 +0100
+@@ -626,8 +626,10 @@ cgraph_analyze_function (struct cgraph_n
+     }
+   else if (node->thunk.thunk_p)
+     {
+-      cgraph_create_edge (node, cgraph_get_node (node->thunk.alias),
+-			  NULL, 0, CGRAPH_FREQ_BASE);
++      struct cgraph_node *t = cgraph_get_node (node->thunk.alias);
++      cgraph_create_edge (node, t, NULL, 0,
++			  CGRAPH_FREQ_BASE)->can_throw_external
++	= !TREE_NOTHROW (t->symbol.decl);
+     }
+   else if (node->dispatcher_function)
+     {
+--- gcc/testsuite/g++.dg/torture/pr68184.C.jj	2017-02-28 08:26:09.205246069 +0100
++++ gcc/testsuite/g++.dg/torture/pr68184.C	2015-12-03 16:39:34.589010321 +0100
+@@ -0,0 +1,31 @@
++// { dg-do run }
++namespace {
++struct IFoo { virtual void foo() = 0; };
++struct IBar { virtual void bar() = 0; };
++
++struct FooBar : private IBar, private IFoo
++{
++    void call_foo()
++    {
++        try
++        {
++            static_cast<IFoo*>(this)->foo();
++        }
++        catch( ... ) {}
++    }
++    void foo() { throw 1; }
++    void bar()  {}
++};
++
++void test()
++{
++    FooBar foobar;
++    foobar.call_foo();
++}
++}
++int main()
++{
++    test();
++    return 0;
++}
++

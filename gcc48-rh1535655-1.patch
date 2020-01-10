@@ -1,0 +1,30 @@
+commit 30562e52396c7fbe2a404acda2b1b77f871005ea
+Author: root <root@lenovo-x3950-01.khw.lab.eng.bos.redhat.com>
+Date:   Thu Jan 18 00:12:41 2018 -0500
+
+    Add FIRST_INT_REG, LAST_INT_REG, LEGACY_INT_REG_P , and LEGACY_INT_REGNO_P
+
+diff --git a/gcc/config/i386/i386.h b/gcc/config/i386/i386.h
+index e31c8d0..87fd381 100644
+--- a/gcc/config/i386/i386.h
++++ b/gcc/config/i386/i386.h
+@@ -1115,6 +1115,9 @@ extern const char *host_detect_local_cpu (int argc, const char **argv);
+ /* Base register for access to local variables of the function.  */
+ #define FRAME_POINTER_REGNUM 20
+ 
++#define FIRST_INT_REG AX_REG
++#define LAST_INT_REG  SP_REG
++
+ /* First floating point reg */
+ #define FIRST_FLOAT_REG 8
+ 
+@@ -1317,6 +1320,9 @@ enum reg_class
+ #define QI_REG_P(X) (REG_P (X) && QI_REGNO_P (REGNO (X)))
+ #define QI_REGNO_P(N) IN_RANGE ((N), AX_REG, BX_REG)
+ 
++#define LEGACY_INT_REG_P(X) (REG_P (X) && LEGACY_INT_REGNO_P (REGNO (X)))
++#define LEGACY_INT_REGNO_P(N) (IN_RANGE ((N), FIRST_INT_REG, LAST_INT_REG))
++
+ #define GENERAL_REG_P(X) \
+   (REG_P (X) && GENERAL_REGNO_P (REGNO (X)))
+ #define GENERAL_REGNO_P(N) \

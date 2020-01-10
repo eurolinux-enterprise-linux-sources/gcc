@@ -1,0 +1,52 @@
+2017-03-07  Jakub Jelinek  <jakub@redhat.com>
+
+	Partial backport
+	2016-05-07  Fritz Reese  <fritzoreese@gmail.com>
+
+	PR fortran/56226
+	* interface.c (gfc_compare_derived_types): Don't ICE if the
+	derived type or both types have no components.
+
+	* gfortran.dg/rh1369183.f90: New test.
+
+--- gcc/fortran/interface.c.jj	2015-06-18 16:32:45.000000000 +0200
++++ gcc/fortran/interface.c	2017-03-07 18:35:38.982302826 +0100
+@@ -418,6 +418,13 @@ gfc_compare_derived_types (gfc_symbol *d
+       && !(derived1->attr.is_bind_c && derived2->attr.is_bind_c))
+     return 0;
+ 
++  /* Protect against null components.  */
++  if (derived1->attr.zero_comp != derived2->attr.zero_comp)
++    return 0;
++
++  if (derived1->attr.zero_comp)
++    return 1;
++
+   dt1 = derived1->components;
+   dt2 = derived2->components;
+ 
+--- gcc/testsuite/gfortran.dg/rh1369183.f90.jj	2017-03-07 18:37:39.574775432 +0100
++++ gcc/testsuite/gfortran.dg/rh1369183.f90	2017-03-07 18:38:38.423993194 +0100
+@@ -0,0 +1,22 @@
++! { dg-do compile }
++
++module mod1369183
++  implicit none
++  contains
++  subroutine sub(test)
++    type test_t
++      sequence
++      integer(4) type
++    end type test_t
++    type(test_t),intent(inout) :: test
++  end subroutine sub
++end module mod1369183
++subroutine rh1369183
++  use mod1369183
++  implicit none 
++  type test_t
++  sequence
++  end type test_t
++  type(test_t) :: tst
++  call sub(tst)                ! { dg-error "Type mismatch in argument" }
++end subroutine rh1369183

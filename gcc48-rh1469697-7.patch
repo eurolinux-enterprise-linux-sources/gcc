@@ -1,0 +1,115 @@
+commit 2bb044f9734259945e2b5048d92bc8d0af707d27
+Author: law <law@138bc75d-0d04-0410-961f-82ee72b054a4>
+Date:   Wed Sep 20 05:43:28 2017 +0000
+
+            * combine-stack-adj.c (combine_stack_adjustments_for_block): Do
+            nothing for stack adjustments with REG_STACK_CHECK.
+            * sched-deps.c (parse_add_or_inc): Reject insns with
+            REG_STACK_CHECK from dependency breaking.
+            * config/i386/i386.c (pro_epilogue_adjust_stack): Return insn.
+            (ix86_adjust_satck_and_probe_stack_clash): Add REG_STACK_NOTEs.
+            * reg-notes.def (STACK_CHECK): New note.
+    
+            * gcc.target/i386/stack-check-11.c: New test.
+    
+    git-svn-id: svn+ssh://gcc.gnu.org/svn/gcc/trunk@252999 138bc75d-0d04-0410-961f-82ee72b054a4
+
+diff --git a/gcc/combine-stack-adj.c b/gcc/combine-stack-adj.c
+index 0a4d8a51d1d..ee66c28ca35 100644
+--- a/gcc/combine-stack-adj.c
++++ b/gcc/combine-stack-adj.c
+@@ -441,6 +441,8 @@ combine_stack_adjustments_for_block (basic_block bb)
+ 	continue;
+ 
+       set = single_set_for_csa (insn);
++      if (set && find_reg_note (insn, REG_STACK_CHECK, NULL_RTX))
++	set = NULL_RTX;
+       if (set)
+ 	{
+ 	  rtx dest = SET_DEST (set);
+diff --git a/gcc/config/i386/i386.c b/gcc/config/i386/i386.c
+index a07104d304d..a9072f58f50 100644
+--- a/gcc/config/i386/i386.c
++++ b/gcc/config/i386/i386.c
+@@ -9502,7 +9502,7 @@ ix86_add_queued_cfa_restore_notes (rtx insn)
+    zero if %r11 register is live and cannot be freely used and positive
+    otherwise.  */
+ 
+-static void
++static rtx
+ pro_epilogue_adjust_stack (rtx dest, rtx src, rtx offset,
+ 			   int style, bool set_cfa)
+ {
+@@ -9589,6 +9589,7 @@ pro_epilogue_adjust_stack (rtx dest, rtx src, rtx offset,
+       m->fs.sp_offset = ooffset - INTVAL (offset);
+       m->fs.sp_valid = valid;
+     }
++  return insn;
+ }
+ 
+ /* Find an available register to be used as dynamic realign argument
+@@ -9902,9 +9903,11 @@ ix86_adjust_stack_and_probe_stack_clash (const HOST_WIDE_INT size)
+       for (i = probe_interval; i <= size; i += probe_interval)
+ 	{
+ 	  /* Allocate PROBE_INTERVAL bytes.  */
+-	  pro_epilogue_adjust_stack (stack_pointer_rtx, stack_pointer_rtx,
+-				     GEN_INT (-probe_interval), -1,
+-				     m->fs.cfa_reg == stack_pointer_rtx);
++	  rtx insn
++	    = pro_epilogue_adjust_stack (stack_pointer_rtx, stack_pointer_rtx,
++					 GEN_INT (-PROBE_INTERVAL), -1,
++					 m->fs.cfa_reg == stack_pointer_rtx);
++	  add_reg_note (insn, REG_STACK_CHECK, const0_rtx);
+ 
+ 	  /* And probe at *sp.  */
+ 	  emit_stack_probe (stack_pointer_rtx);
+diff --git a/gcc/reg-notes.def b/gcc/reg-notes.def
+index db61c092aab..1d7a4356a85 100644
+--- a/gcc/reg-notes.def
++++ b/gcc/reg-notes.def
+@@ -216,3 +216,7 @@ REG_NOTE (ARGS_SIZE)
+    that the return value of a call can be used to reinitialize a
+    pseudo reg.  */
+ REG_NOTE (RETURNED)
++
++/* Indicates the instruction is a stack check probe that should not
++   be combined with other stack adjustments.  */
++REG_NOTE (STACK_CHECK)
+diff --git a/gcc/sched-deps.c b/gcc/sched-deps.c
+index 4ac2542a3af..75780150e34 100644
+--- a/gcc/sched-deps.c
++++ b/gcc/sched-deps.c
+@@ -4607,6 +4607,11 @@ parse_add_or_inc (struct mem_inc_info *mii, rtx insn, bool before_mem)
+   if (RTX_FRAME_RELATED_P (insn) || !pat)
+     return false;
+ 
++  /* Do not allow breaking data dependencies for insns that are marked
++     with REG_STACK_CHECK.  */
++  if (find_reg_note (insn, REG_STACK_CHECK, NULL))
++    return false;
++
+   /* Result must be single reg.  */
+   if (!REG_P (SET_DEST (pat)))
+     return false;
+diff --git a/gcc/testsuite/gcc.target/i386/stack-check-11.c b/gcc/testsuite/gcc.target/i386/stack-check-11.c
+new file mode 100644
+index 00000000000..183103f01e5
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/i386/stack-check-11.c
+@@ -0,0 +1,16 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -fstack-clash-protection" } */
++/* { dg-require-effective-target supports_stack_clash_protection } */
++
++extern void arf (unsigned long int *, unsigned long int *);
++void
++frob ()
++{
++  unsigned long int num[859];
++  unsigned long int den[859];
++  arf (den, num);
++}
++
++/* { dg-final { scan-assembler-times "subq" 4 } } */
++/* { dg-final { scan-assembler-times "orq" 3 } } */
++

@@ -1,0 +1,37 @@
+2016-06-14  Jason Merrill  <jason@redhat.com>
+
+	* call.c (add_function_candidate): Be more careful about
+	ref-to-ptr conversion.
+
+2016-06-15  Jakub Jelinek  <jakub@redhat.com>
+
+	* g++.dg/cpp0x/ref-qual17.C: New test.
+
+--- gcc/cp/call.c.jj	2014-08-06 10:45:03.260163142 +0200
++++ gcc/cp/call.c	2016-06-15 11:15:06.663878423 +0200
+@@ -1975,7 +1975,9 @@ add_function_candidate (struct z_candida
+ 		  bool rv = FUNCTION_RVALUE_QUALIFIED (TREE_TYPE (fn));
+ 		  parmtype = cp_build_reference_type (parmtype, rv);
+ 		  if (TREE_CODE (arg) == CONVERT_EXPR
+-		      && TYPE_PTR_P (TREE_TYPE (arg)))
++		      && TYPE_PTR_P (TREE_TYPE (arg))
++		      && (TREE_CODE (TREE_TYPE (TREE_OPERAND (arg, 0)))
++			  == REFERENCE_TYPE))
+ 		    /* Strip conversion from reference to pointer.  */
+ 		    arg = TREE_OPERAND (arg, 0);
+ 		  arg = build_fold_indirect_ref (arg);
+--- gcc/testsuite/g++.dg/cpp0x/ref-qual17.C.jj	2016-06-15 11:12:57.692558903 +0200
++++ gcc/testsuite/g++.dg/cpp0x/ref-qual17.C	2016-06-15 11:07:02.000000000 +0200
+@@ -0,0 +1,12 @@
++// { dg-do compile { target c++11 } }
++
++struct A
++{
++  void foo () &;
++};
++
++void
++bar (__UINTPTR_TYPE__ a)
++{
++  reinterpret_cast<A *>(a)->foo ();
++}

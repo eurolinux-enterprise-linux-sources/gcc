@@ -1,0 +1,60 @@
+2015-10-02  Uros Bizjak  <ubizjak@gmail.com>
+
+        * system.h (ROUND_UP): New macro definition.
+        (ROUND_DOWN): Ditto.
+        * ggc-page.c (ROUND_UP): Remove local macro definition.
+        (PAGE_ALIGN): Implement using ROUND_UP macro.
+
+2013-08-24  Marc Glisse  <marc.glisse@inria.fr>
+
+        PR other/57324
+        * hwint.h (HOST_WIDE_INT_UC, HOST_WIDE_INT_1U, HOST_WIDE_INT_M1,
+        HOST_WIDE_INT_M1U): New macros.
+
+
+diff --git a/gcc/ggc-page.c b/gcc/ggc-page.c
+index 5b18468439d..4fb41b1112b 100644
+--- a/gcc/ggc-page.c
++++ b/gcc/ggc-page.c
+@@ -216,10 +216,6 @@ static const size_t extra_order_size_table[] = {
+ 
+ #define ROUND_UP_VALUE(x, f) ((f) - 1 - ((f) - 1 + (x)) % (f))
+ 
+-/* Compute the smallest multiple of F that is >= X.  */
+-
+-#define ROUND_UP(x, f) (CEIL (x, f) * (f))
+-
+ /* Round X to next multiple of the page size */
+ 
+ #define PAGE_ALIGN(x) (((x) + G.pagesize - 1) & ~(G.pagesize - 1))
+diff --git a/gcc/hwint.h b/gcc/hwint.h
+index da62fadcc9e..64b1805345d 100644
+--- a/gcc/hwint.h
++++ b/gcc/hwint.h
+@@ -76,7 +76,9 @@ extern char sizeof_long_long_must_be_8[sizeof(long long) == 8 ? 1 : -1];
+ # endif
+ #endif
+ 
++#define HOST_WIDE_INT_UC(X) HOST_WIDE_INT_C (X ## U)
+ #define HOST_WIDE_INT_1 HOST_WIDE_INT_C(1)
++#define HOST_WIDE_INT_1U HOST_WIDE_INT_UC(1)
+ 
+ /* This is a magic identifier which allows GCC to figure out the type
+    of HOST_WIDE_INT for %wd specifier checks.  You must issue this
+diff --git a/gcc/system.h b/gcc/system.h
+index 41cd565538a..8230d506fc3 100644
+--- a/gcc/system.h
++++ b/gcc/system.h
+@@ -348,6 +348,12 @@ extern int errno;
+ /* Returns the least number N such that N * Y >= X.  */
+ #define CEIL(x,y) (((x) + (y) - 1) / (y))
+ 
++/* This macro rounds x up to the y boundary.  */
++#define ROUND_UP(x,y) (((x) + (y) - 1) & ~((y) - 1))
++
++/* This macro rounds x down to the y boundary.  */
++#define ROUND_DOWN(x,y) ((x) & ~((y) - 1))
++
+ #ifdef HAVE_SYS_WAIT_H
+ #include <sys/wait.h>
+ #endif

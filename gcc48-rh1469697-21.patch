@@ -1,0 +1,144 @@
+	PR middle-end/83654
+	* explow.c (anti_adjust_stack_and_probe_stack_clash): Test a
+	non-constant residual for zero at runtime and avoid probing in
+	that case.  Reorganize code for trailing problem to mirror handling
+	of the residual.
+
+	PR middle-end/83654
+	* gcc.target/i386/stack-check-18.c: New test.
+	* gcc.target/i386/stack-check-19.c: New test.
+
+diff --git a/gcc/explow.c b/gcc/explow.c
+index b6c56602152..042e71904ec 100644
+--- a/gcc/explow.c
++++ b/gcc/explow.c
+@@ -1997,11 +1997,27 @@ anti_adjust_stack_and_probe_stack_clash (rtx size)
+ 
+   if (residual != CONST0_RTX (Pmode))
+     {
++      rtx label = NULL_RTX;
++      /* RESIDUAL could be zero at runtime and in that case *sp could
++	 hold live data.  Furthermore, we do not want to probe into the
++	 red zone.
++
++	 Go ahead and just guard the probe at *sp on RESIDUAL != 0 at
++	 runtime if RESIDUAL is not a compile time constant.  */
++      if (!CONST_INT_P (residual))
++	{
++	  label = gen_label_rtx ();
++	  emit_cmp_and_jump_insns (residual, CONST0_RTX (GET_MODE (residual)),
++				   EQ, NULL_RTX, Pmode, 1, label);
++	}
++
+       rtx x = force_reg (Pmode, plus_constant (Pmode, residual,
+ 					       -GET_MODE_SIZE (word_mode)));
+       anti_adjust_stack (residual);
+       emit_stack_probe (gen_rtx_PLUS (Pmode, stack_pointer_rtx, x));
+       emit_insn (gen_blockage ());
++      if (!CONST_INT_P (residual))
++	emit_label (label);
+     }
+ 
+   /* Some targets make optimistic assumptions in their prologues about
+@@ -2014,28 +2030,20 @@ anti_adjust_stack_and_probe_stack_clash (rtx size)
+ 	 live data.  Furthermore, we don't want to probe into the red
+ 	 zone.
+ 
+-	 Go ahead and just guard a probe at *sp on SIZE != 0 at runtime
++	 Go ahead and just guard the probe at *sp on SIZE != 0 at runtime
+ 	 if SIZE is not a compile time constant.  */
+-
+-      /* Ideally we would just probe at *sp.  However, if SIZE is not
+-	 a compile-time constant, but is zero at runtime, then *sp
+-	 might hold live data.  So probe at *sp if we know that
+-	 an allocation was made, otherwise probe into the red zone
+-	 which is obviously undesirable.  */
+-      if (CONST_INT_P (size))
+-	{
+-	  emit_stack_probe (stack_pointer_rtx);
+-	  emit_insn (gen_blockage ());
+-	}
+-      else
++      rtx label = NULL_RTX;
++      if (!CONST_INT_P (size))
+ 	{
+-	  rtx label = gen_label_rtx ();
++	  label = gen_label_rtx ();
+ 	  emit_cmp_and_jump_insns (size, CONST0_RTX (GET_MODE (size)),
+ 				   EQ, NULL_RTX, Pmode, 1, label);
+-	  emit_stack_probe (stack_pointer_rtx);
+-	  emit_insn (gen_blockage ());
+-	  emit_label (label);
+ 	}
++
++      emit_stack_probe (stack_pointer_rtx);
++      emit_insn (gen_blockage ());
++      if (!CONST_INT_P (size))
++	emit_label (label);
+     }
+ }
+ 
+diff --git a/gcc/testsuite/gcc.target/i386/stack-check-18.c b/gcc/testsuite/gcc.target/i386/stack-check-18.c
+new file mode 100644
+index 00000000000..6dbff4402da
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/i386/stack-check-18.c
+@@ -0,0 +1,23 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -fstack-clash-protection -mtune=generic -fdump-rtl-expand" } */
++/* { dg-require-effective-target supports_stack_clash_protection } */
++
++int f1 (char *);
++
++int
++f2 (void)
++{
++  const int size = 4096;
++  char buffer[size];
++  return f1 (buffer);
++}
++
++/* So we want to verify that at expand time that we probed the main
++   VLA allocation as well as the residuals.  Then we want to verify
++   there was only one probe in the final assembly (implying the
++   residual probe was optimized away).  */
++/* { dg-final { scan-rtl-dump-times "allocation and probing in loop" 1 "expand" } } */
++/* { dg-final { scan-rtl-dump-times "allocation and probing residuals" 1 "expand" } } */
++
++/* { dg-final { scan-assembler-times "or\[ql\]" 1 } } */
++
+diff --git a/gcc/testsuite/gcc.target/i386/stack-check-19.c b/gcc/testsuite/gcc.target/i386/stack-check-19.c
+new file mode 100644
+index 00000000000..b92c126d57f
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/i386/stack-check-19.c
+@@ -0,0 +1,29 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -fstack-clash-protection -mtune=generic -fdump-rtl-expand" } */
++/* { dg-require-effective-target supports_stack_clash_protection } */
++
++int f1 (char *);
++
++int
++f2 (const int size)
++{
++  char buffer[size];
++  return f1 (buffer);
++}
++
++/* So we want to verify that at expand time that we probed the main
++   VLA allocation as well as the residuals.  Then we want to verify
++   there are two probes in the final assembly code.  */
++/* { dg-final { scan-rtl-dump-times "allocation and probing in loop" 1 "expand" } } */
++/* { dg-final { scan-rtl-dump-times "allocation and probing residuals" 1 "expand" } } */
++/* { dg-final { scan-assembler-times "or\[ql\]" 2 } } */
++
++/* We also want to verify (indirectly) that the residual probe is
++   guarded.  We do that by checking the number of conditional
++   branches.  There should be 3.  One that bypasses the probe loop, one
++   in the probe loop and one that bypasses the residual probe.
++
++   These will all be equality tests.  */
++/* { dg-final { scan-assembler-times "(\?:je|jne)" 3 } } */
++
++

@@ -1,0 +1,46 @@
+2015-12-04  Jakub Jelinek  <jakub@redhat.com>
+
+	PR tree-optimization/68680
+	* calls.c (special_function_p): Return ECF_MAY_BE_ALLOCA for
+	BUILT_IN_ALLOCA{,_WITH_ALIGN}.
+
+	* gcc.target/i386/pr68680.c: New test.
+
+--- gcc/calls.c	(revision 231278)
++++ gcc/calls.c	(revision 231279)
+@@ -564,6 +564,17 @@ special_function_p (const_tree fndecl, i
+ 	flags |= ECF_NORETURN;
+     }
+ 
++  if (DECL_BUILT_IN_CLASS (fndecl) == BUILT_IN_NORMAL)
++    switch (DECL_FUNCTION_CODE (fndecl))
++      {
++      case BUILT_IN_ALLOCA:
++      case BUILT_IN_ALLOCA_WITH_ALIGN:
++	flags |= ECF_MAY_BE_ALLOCA;
++	break;
++      default:
++	break;
++      }
++
+   return flags;
+ }
+ 
+--- gcc/testsuite/gcc.target/i386/pr68680.c	(revision 0)
++++ gcc/testsuite/gcc.target/i386/pr68680.c	(revision 231279)
+@@ -0,0 +1,15 @@
++/* PR tree-optimization/68680 */
++/* { dg-do compile } */
++/* { dg-options "-O2 -fstack-protector-strong" } */
++
++int foo (char *);
++
++int
++bar (unsigned long x)
++{
++  char a[x];
++  return foo (a);
++}
++
++/* Verify that this function is stack protected.  */
++/* { dg-final { scan-assembler "stack_chk_fail" } } */

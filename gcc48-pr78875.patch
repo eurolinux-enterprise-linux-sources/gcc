@@ -1,0 +1,254 @@
+2017-01-17  Segher Boessenkool  <segher@kernel.crashing.org>
+
+	PR target/78875
+	* config/rs6000/rs6000-opts.h (stack_protector_guard): New enum.
+	* config/rs6000/rs6000.c (rs6000_option_override_internal): Handle
+	the new options.
+	* config/rs6000/rs6000.md (stack_protect_set): Handle the new more
+	flexible settings.
+	(stack_protect_test): Ditto.
+	* config/rs6000/rs6000.opt (mstack-protector-guard=,
+	mstack-protector-guard-reg=, mstack-protector-guard-offset=): New
+	options.
+	* doc/invoke.texi (Option Summary) [RS/6000 and PowerPC Options]:
+	Add -mstack-protector-guard=, -mstack-protector-guard-reg=, and
+	-mstack-protector-guard-offset=.
+	(RS/6000 and PowerPC Options): Ditto.
+
+	* gcc.target/powerpc/ssp-1.c: New testcase.
+	* gcc.target/powerpc/ssp-2.c: New testcase.
+
+--- gcc/config/rs6000/rs6000.opt	(revision 244555)
++++ gcc/config/rs6000/rs6000.opt	(revision 244556)
+@@ -593,3 +593,31 @@ Allow float variables in upper registers
+ moptimize-swaps
+ Target Undocumented Var(rs6000_optimize_swaps) Init(1) Save
+ Analyze and remove doubleword swaps from VSX computations.
++
++mstack-protector-guard=
++Target RejectNegative Joined Enum(stack_protector_guard) Var(rs6000_stack_protector_guard) Init(SSP_TLS)
++Use given stack-protector guard.
++
++Enum
++Name(stack_protector_guard) Type(enum stack_protector_guard)
++Valid arguments to -mstack-protector-guard=:
++
++EnumValue
++Enum(stack_protector_guard) String(tls) Value(SSP_TLS)
++
++EnumValue
++Enum(stack_protector_guard) String(global) Value(SSP_GLOBAL)
++
++mstack-protector-guard-reg=
++Target RejectNegative Joined Var(rs6000_stack_protector_guard_reg_str)
++Use the given base register for addressing the stack-protector guard.
++
++TargetVariable
++int rs6000_stack_protector_guard_reg = 0
++
++mstack-protector-guard-offset=
++Target RejectNegative Joined Integer Var(rs6000_stack_protector_guard_offset_str)
++Use the given offset for addressing the stack-protector guard.
++
++TargetVariable
++long rs6000_stack_protector_guard_offset = 0
+--- gcc/config/rs6000/rs6000.c	(revision 244555)
++++ gcc/config/rs6000/rs6000.c	(revision 244556)
+@@ -3727,6 +3727,54 @@ rs6000_option_override_internal (bool gl
+ 				    atoi (rs6000_sched_insert_nops_str));
+     }
+ 
++  /* Handle stack protector */
++  if (!global_options_set.x_rs6000_stack_protector_guard)
++#ifdef TARGET_THREAD_SSP_OFFSET
++    rs6000_stack_protector_guard = SSP_TLS;
++#else
++    rs6000_stack_protector_guard = SSP_GLOBAL;
++#endif
++
++#ifdef TARGET_THREAD_SSP_OFFSET
++  rs6000_stack_protector_guard_offset = TARGET_THREAD_SSP_OFFSET;
++  rs6000_stack_protector_guard_reg = TARGET_64BIT ? 13 : 2;
++#endif
++
++  if (global_options_set.x_rs6000_stack_protector_guard_offset_str)
++    {
++      char *endp;
++      const char *str = rs6000_stack_protector_guard_offset_str;
++
++      errno = 0;
++      long offset = strtol (str, &endp, 0);
++      if (!*str || *endp || errno)
++	error ("%qs is not a valid number "
++	       "in -mstack-protector-guard-offset=", str);
++
++      if (!IN_RANGE (offset, -0x8000, 0x7fff)
++	  || (TARGET_64BIT && (offset & 3)))
++	error ("%qs is not a valid offset "
++	       "in -mstack-protector-guard-offset=", str);
++
++      rs6000_stack_protector_guard_offset = offset;
++    }
++
++  if (global_options_set.x_rs6000_stack_protector_guard_reg_str)
++    {
++      const char *str = rs6000_stack_protector_guard_reg_str;
++      int reg = decode_reg_name (str);
++
++      if (!IN_RANGE (reg, 1, 31))
++	error ("%qs is not a valid base register "
++	       "in -mstack-protector-guard-reg=", str);
++
++      rs6000_stack_protector_guard_reg = reg;
++    }
++
++  if (rs6000_stack_protector_guard == SSP_TLS
++      && !IN_RANGE (rs6000_stack_protector_guard_reg, 1, 31))
++    error ("-mstack-protector-guard=tls needs a valid base register");
++
+   if (global_init_p)
+     {
+ #ifdef TARGET_REGNAMES
+--- gcc/config/rs6000/rs6000.md	(revision 244555)
++++ gcc/config/rs6000/rs6000.md	(revision 244556)
+@@ -13092,19 +13092,23 @@
+ 
+ 
+ (define_expand "stack_protect_set"
+-  [(match_operand 0 "memory_operand" "")
+-   (match_operand 1 "memory_operand" "")]
++  [(match_operand 0 "memory_operand")
++   (match_operand 1 "memory_operand")]
+   ""
+ {
+-#ifdef TARGET_THREAD_SSP_OFFSET
+-  rtx tlsreg = gen_rtx_REG (Pmode, TARGET_64BIT ? 13 : 2);
+-  rtx addr = gen_rtx_PLUS (Pmode, tlsreg, GEN_INT (TARGET_THREAD_SSP_OFFSET));
+-  operands[1] = gen_rtx_MEM (Pmode, addr);
+-#endif
++  if (rs6000_stack_protector_guard == SSP_TLS)
++    {
++      rtx reg = gen_rtx_REG (Pmode, rs6000_stack_protector_guard_reg);
++      rtx offset = GEN_INT (rs6000_stack_protector_guard_offset);
++      rtx addr = gen_rtx_PLUS (Pmode, reg, offset);
++      operands[1] = gen_rtx_MEM (Pmode, addr);
++    }
++
+   if (TARGET_64BIT)
+     emit_insn (gen_stack_protect_setdi (operands[0], operands[1]));
+   else
+     emit_insn (gen_stack_protect_setsi (operands[0], operands[1]));
++
+   DONE;
+ })
+ 
+@@ -13127,21 +13131,26 @@
+    (set_attr "length" "12")])
+ 
+ (define_expand "stack_protect_test"
+-  [(match_operand 0 "memory_operand" "")
+-   (match_operand 1 "memory_operand" "")
+-   (match_operand 2 "" "")]
++  [(match_operand 0 "memory_operand")
++   (match_operand 1 "memory_operand")
++   (match_operand 2 "")]
+   ""
+ {
+-  rtx test, op0, op1;
+-#ifdef TARGET_THREAD_SSP_OFFSET
+-  rtx tlsreg = gen_rtx_REG (Pmode, TARGET_64BIT ? 13 : 2);
+-  rtx addr = gen_rtx_PLUS (Pmode, tlsreg, GEN_INT (TARGET_THREAD_SSP_OFFSET));
+-  operands[1] = gen_rtx_MEM (Pmode, addr);
+-#endif
+-  op0 = operands[0];
+-  op1 = gen_rtx_UNSPEC (Pmode, gen_rtvec (1, operands[1]), UNSPEC_SP_TEST);
+-  test = gen_rtx_EQ (VOIDmode, op0, op1);
+-  emit_jump_insn (gen_cbranchsi4 (test, op0, op1, operands[2]));
++  rtx guard = operands[1];
++
++  if (rs6000_stack_protector_guard == SSP_TLS)
++    {
++      rtx reg = gen_rtx_REG (Pmode, rs6000_stack_protector_guard_reg);
++      rtx offset = GEN_INT (rs6000_stack_protector_guard_offset);
++      rtx addr = gen_rtx_PLUS (Pmode, reg, offset);
++      guard = gen_rtx_MEM (Pmode, addr);
++    }
++
++  operands[1] = gen_rtx_UNSPEC (Pmode, gen_rtvec (1, guard), UNSPEC_SP_TEST);
++  rtx test = gen_rtx_EQ (VOIDmode, operands[0], operands[1]);
++  rtx jump = gen_cbranchsi4 (test, operands[0], operands[1], operands[2]);
++  emit_jump_insn (jump);
++
+   DONE;
+ })
+ 
+--- gcc/config/rs6000/rs6000-opts.h	(revision 244555)
++++ gcc/config/rs6000/rs6000-opts.h	(revision 244556)
+@@ -154,6 +154,12 @@ enum rs6000_vector {
+   VECTOR_OTHER			/* Some other vector unit */
+ };
+ 
++/* Where to get the canary for the stack protector.  */
++enum stack_protector_guard {
++  SSP_TLS,			/* per-thread canary in TLS block */
++  SSP_GLOBAL			/* global canary */
++};
++
+ /* No enumeration is defined to index the -mcpu= values (entries in
+    processor_target_table), with the type int being used instead, but
+    we need to distinguish the special "native" value.  */
+--- gcc/doc/invoke.texi	(revision 244555)
++++ gcc/doc/invoke.texi	(revision 244556)
+@@ -862,7 +862,9 @@ See RS/6000 and PowerPC Options.
+ -mcrypto -mno-crypto -mdirect-move -mno-direct-move @gol
+ -mquad-memory -mno-quad-memory @gol
+ -mquad-memory-atomic -mno-quad-memory-atomic @gol
+--mcompat-align-parm -mno-compat-align-parm}
++-mcompat-align-parm -mno-compat-align-parm @gol
++-mstack-protector-guard=@var{guard} -mstack-protector-guard-reg=@var{reg} @gol
++-mstack-protector-guard-offset=@var{offset}}
+ 
+ @emph{RX Options}
+ @gccoptlist{-m64bit-doubles  -m32bit-doubles  -fpu  -nofpu@gol
+@@ -18295,6 +18297,23 @@ GCC.
+ 
+ In this version of the compiler, the @option{-mcompat-align-parm}
+ is the default, except when using the Linux ELFv2 ABI.
++
++@item -mstack-protector-guard=@var{guard}
++@itemx -mstack-protector-guard-reg=@var{reg}
++@itemx -mstack-protector-guard-offset=@var{offset}
++@opindex mstack-protector-guard
++@opindex mstack-protector-guard-reg
++@opindex mstack-protector-guard-offset
++Generate stack protection code using canary at @var{guard}.  Supported
++locations are @samp{global} for global canary or @samp{tls} for per-thread
++canary in the TLS block (the default with GNU libc version 2.4 or later).
++
++With the latter choice the options
++@option{-mstack-protector-guard-reg=@var{reg}} and
++@option{-mstack-protector-guard-offset=@var{offset}} furthermore specify
++which register to use as base register for reading the canary, and from what
++offset from that base register. The default for those is as specified in the
++relevant ABI.
+ @end table
+ 
+ @node RX Options
+--- gcc/testsuite/gcc.target/powerpc/ssp-1.c	(nonexistent)
++++ gcc/testsuite/gcc.target/powerpc/ssp-1.c	(revision 244562)
+@@ -0,0 +1,6 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -fstack-protector-all -mstack-protector-guard=global" } */
++
++/* { dg-final { scan-assembler "__stack_chk_guard" } } */
++
++void f(void) { }
+--- gcc/testsuite/gcc.target/powerpc/ssp-2.c	(nonexistent)
++++ gcc/testsuite/gcc.target/powerpc/ssp-2.c	(revision 244562)
+@@ -0,0 +1,6 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -fstack-protector-all -mstack-protector-guard=tls -mstack-protector-guard-reg=r18 -mstack-protector-guard-offset=0x3038" } */
++
++/* { dg-final { scan-assembler {\m12344\(r?18\)} } } */
++
++void f(void) { }

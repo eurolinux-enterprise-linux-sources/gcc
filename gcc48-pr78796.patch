@@ -1,0 +1,56 @@
+2016-12-14  Wilco Dijkstra  <wdijkstr@arm.com>
+	    Jakub Jelinek  <jakub@redhat.com>
+
+	PR target/78796
+	* config/aarch64/aarch64.c (aarch64_classify_symbol): Merge large
+	model checks into switch.
+
+	* gcc.dg/tls/pr78796.c: New test.
+
+--- gcc/config/aarch64/aarch64.c	(revision 243645)
++++ gcc/config/aarch64/aarch64.c	(revision 243646)
+@@ -4986,6 +4986,9 @@ aarch64_classify_symbol (rtx x,
+   switch (aarch64_cmodel)
+     {
+     case AARCH64_CMODEL_LARGE:
++      if (aarch64_tls_symbol_p (x))
++	return aarch64_classify_tls_symbol (x);
++
+       return SYMBOL_FORCE_TO_MEM;
+ 
+     case AARCH64_CMODEL_TINY:
+--- gcc/testsuite/gcc.dg/tls/pr78796.c	(nonexistent)
++++ gcc/testsuite/gcc.dg/tls/pr78796.c	(revision 243646)
+@@ -0,0 +1,32 @@
++/* PR target/78796 */
++/* { dg-do run } */
++/* { dg-options "-O2" } */
++/* { dg-additional-options "-mcmodel=large" { target aarch64-*-* } } */
++/* { dg-require-effective-target tls } */
++
++struct S { int a, b, c, d, e; };
++struct S t;
++__thread struct S s;
++
++__attribute__((used, noinline, noclone)) void
++foo (int *x, int *y)
++{
++  asm volatile ("" : : "g" (x), "g" (y) : "memory");
++  if (*x != 1 || *y != 2)
++    __builtin_abort ();
++}
++
++__attribute__((used, noinline, noclone)) void
++bar (void)
++{
++  foo (&t.c, &s.c);
++}
++
++int
++main ()
++{
++  t.c = 1;
++  s.c = 2;
++  bar ();
++  return 0;
++}

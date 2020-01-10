@@ -1,0 +1,111 @@
+2015-08-04  Szabolcs Nagy  <szabolcs.nagy@arm.com>
+
+	Backport from mainline:
+	2015-07-06  Szabolcs Nagy  <szabolcs.nagy@arm.com>
+
+	PR target/66731
+	* config/aarch64/aarch64.md (fnmul<mode>3): Handle -frounding-math.
+
+	* gcc.target/aarch64/fnmul-1.c: New.
+	* gcc.target/aarch64/fnmul-2.c: New.
+	* gcc.target/aarch64/fnmul-3.c: New.
+	* gcc.target/aarch64/fnmul-4.c: New.
+
+--- gcc/config/aarch64/aarch64.md	(revision 226591)
++++ gcc/config/aarch64/aarch64.md	(revision 226592)
+@@ -3101,6 +3101,17 @@
+         (mult:GPF
+ 		 (neg:GPF (match_operand:GPF 1 "register_operand" "w"))
+ 		 (match_operand:GPF 2 "register_operand" "w")))]
++  "TARGET_FLOAT && !flag_rounding_math"
++  "fnmul\\t%<s>0, %<s>1, %<s>2"
++  [(set_attr "v8type" "fmul")
++   (set_attr "mode" "<MODE>")]
++)
++
++(define_insn "*fnmul<mode>3"
++  [(set (match_operand:GPF 0 "register_operand" "=w")
++        (neg:GPF (mult:GPF
++		 (match_operand:GPF 1 "register_operand" "w")
++		 (match_operand:GPF 2 "register_operand" "w"))))]
+   "TARGET_FLOAT"
+   "fnmul\\t%<s>0, %<s>1, %<s>2"
+   [(set_attr "v8type" "fmul")
+--- gcc/testsuite/gcc.target/aarch64/fnmul-1.c	(nonexistent)
++++ gcc/testsuite/gcc.target/aarch64/fnmul-1.c	(revision 226592)
+@@ -0,0 +1,16 @@
++/* { dg-do compile } */
++/* { dg-options "-O2" } */
++
++double
++foo_d (double a, double b)
++{
++  /* { dg-final { scan-assembler "fnmul\\td\[0-9\]+, d\[0-9\]+, d\[0-9\]+" } } */
++  return -a * b;
++}
++
++float
++foo_s (float a, float b)
++{
++  /* { dg-final { scan-assembler "fnmul\\ts\[0-9\]+, s\[0-9\]+, s\[0-9\]+" } } */
++  return -a * b;
++}
+--- gcc/testsuite/gcc.target/aarch64/fnmul-2.c	(nonexistent)
++++ gcc/testsuite/gcc.target/aarch64/fnmul-2.c	(revision 226592)
+@@ -0,0 +1,18 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -frounding-math" } */
++
++double
++foo_d (double a, double b)
++{
++  /* { dg-final { scan-assembler "fneg\\td\[0-9\]+, d\[0-9\]+" } } */
++  /* { dg-final { scan-assembler "fmul\\td\[0-9\]+, d\[0-9\]+, d\[0-9\]+" } } */
++  return -a * b;
++}
++
++float
++foo_s (float a, float b)
++{
++  /* { dg-final { scan-assembler "fneg\\ts\[0-9\]+, s\[0-9\]+" } } */
++  /* { dg-final { scan-assembler "fmul\\ts\[0-9\]+, s\[0-9\]+, s\[0-9\]+" } } */
++  return -a * b;
++}
+--- gcc/testsuite/gcc.target/aarch64/fnmul-3.c	(nonexistent)
++++ gcc/testsuite/gcc.target/aarch64/fnmul-3.c	(revision 226592)
+@@ -0,0 +1,16 @@
++/* { dg-do compile } */
++/* { dg-options "-O2" } */
++
++double
++foo_d (double a, double b)
++{
++  /* { dg-final { scan-assembler "fnmul\\td\[0-9\]+, d\[0-9\]+, d\[0-9\]+" } } */
++  return -(a * b);
++}
++
++float
++foo_s (float a, float b)
++{
++  /* { dg-final { scan-assembler "fnmul\\ts\[0-9\]+, s\[0-9\]+, s\[0-9\]+" } } */
++  return -(a * b);
++}
+--- gcc/testsuite/gcc.target/aarch64/fnmul-4.c	(nonexistent)
++++ gcc/testsuite/gcc.target/aarch64/fnmul-4.c	(revision 226592)
+@@ -0,0 +1,16 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -frounding-math" } */
++
++double
++foo_d (double a, double b)
++{
++  /* { dg-final { scan-assembler "fnmul\\td\[0-9\]+, d\[0-9\]+, d\[0-9\]+" } } */
++  return -(a * b);
++}
++
++float
++foo_s (float a, float b)
++{
++  /* { dg-final { scan-assembler "fnmul\\ts\[0-9\]+, s\[0-9\]+, s\[0-9\]+" } } */
++  return -(a * b);
++}

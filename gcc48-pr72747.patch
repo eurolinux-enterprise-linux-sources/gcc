@@ -1,0 +1,90 @@
+2016-11-02  Will Schmidt <will_schmidt@vnet.ibm.com>
+
+	Backport from trunk
+	2016-10-26  Will Schmidt <will_schmidt@vnet.ibm.com>
+
+	PR middle-end/72747
+	* gimplify.c (gimplify_init_constructor): Move emit of constructor
+	assignment to earlier in the if/else logic.
+
+	* c-c++-common/pr72747-1.c: New test.
+	* c-c++-common/pr72747-2.c: Likewise.
+
+--- gcc/gimplify.c	(revision 241792)
++++ gcc/gimplify.c	(revision 241793)
+@@ -4273,24 +4273,23 @@ gimplify_init_constructor (tree *expr_p,
+ 
+   if (ret == GS_ERROR)
+     return GS_ERROR;
+-  else if (want_value)
++  /* If we have gimplified both sides of the initializer but have
++     not emitted an assignment, do so now.  */
++  if (*expr_p)
++    {
++      tree lhs = TREE_OPERAND (*expr_p, 0);
++      tree rhs = TREE_OPERAND (*expr_p, 1);
++      gimple init = gimple_build_assign (lhs, rhs);
++      gimplify_seq_add_stmt (pre_p, init);
++    }
++  if (want_value)
+     {
+       *expr_p = object;
+       return GS_OK;
+     }
+   else
+     {
+-      /* If we have gimplified both sides of the initializer but have
+-	 not emitted an assignment, do so now.  */
+-      if (*expr_p)
+-	{
+-	  tree lhs = TREE_OPERAND (*expr_p, 0);
+-	  tree rhs = TREE_OPERAND (*expr_p, 1);
+-	  gimple init = gimple_build_assign (lhs, rhs);
+-	  gimplify_seq_add_stmt (pre_p, init);
+-	  *expr_p = NULL;
+-	}
+-
++      *expr_p = NULL;
+       return GS_ALL_DONE;
+     }
+ }
+--- gcc/testsuite/c-c++-common/pr72747-1.c	(nonexistent)
++++ gcc/testsuite/c-c++-common/pr72747-1.c	(revision 241793)
+@@ -0,0 +1,16 @@
++/* { dg-do compile } */
++/* { dg-require-effective-target powerpc_altivec_ok } */
++/* { dg-options "-maltivec -fdump-tree-gimple" } */
++
++/* PR 72747: Test that cascaded definition is happening for constant vectors. */
++
++#include <altivec.h>
++
++int main (int argc, char *argv[])
++{
++	__vector int v1,v2;
++	v1 = v2 = vec_splats ((int) 42);
++	return 0;
++}
++/* { dg-final { scan-tree-dump-times " v2 = { 42, 42, 42, 42 }" 1 "gimple" } } */
++
+--- gcc/testsuite/c-c++-common/pr72747-2.c	(nonexistent)
++++ gcc/testsuite/c-c++-common/pr72747-2.c	(revision 241793)
+@@ -0,0 +1,18 @@
++/* { dg-do compile } */
++/* { dg-require-effective-target powerpc_altivec_ok } */
++/* { dg-options "-c -maltivec -fdump-tree-gimple" } */
++
++/* PR 72747: test that cascaded definition is happening for non constants. */
++
++void foo ()
++{
++  extern int i;
++  __vector int v,w;
++    v = w = (vector int) { i };
++}
++
++int main (int argc, char *argv[])
++{
++  return 0;
++}
++/* { dg-final { scan-tree-dump-times " w = " 1 "gimple" } } */

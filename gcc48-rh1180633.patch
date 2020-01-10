@@ -1,0 +1,338 @@
+2016-01-22  Torvald Riegel  <triegel@redhat.com>
+
+	* beginend.cc (GTM::gtm_thread::serial_lock): Put on cacheline
+	boundary.
+	(htm_fastpath): Remove.
+	(gtm_thread::begin_transaction): Fix HTM fastpath.
+	(_ITM_commitTransaction): Adapt.
+	(_ITM_commitTransactionEH): Adapt.
+	* libitm/config/linux/rwlock.h (gtm_rwlock): Add htm_fastpath member
+	and accessors.
+	* libitm/config/posix/rwlock.h (gtm_rwlock): Likewise.
+	* libitm/config/posix/rwlock.cc (gtm_rwlock::gtm_rwlock): Adapt.
+	* libitm/libitm_i.h (htm_fastpath): Remove declaration.
+	* libitm/method-serial.cc (htm_mg): Adapt.
+	(gtm_thread::serialirr_mode): Adapt.
+	* libitm/query.cc (_ITM_inTransaction, _ITM_getTransactionId): Adapt.
+
+--- libitm/beginend.cc
++++ libitm/beginend.cc
+@@ -32,7 +32,11 @@ using namespace GTM;
+ extern __thread gtm_thread_tls _gtm_thr_tls;
+ #endif
+ 
+-gtm_rwlock GTM::gtm_thread::serial_lock;
++// Put this at the start of a cacheline so that serial_lock's writers and
++// htm_fastpath fields are on the same cacheline, so that HW transactions
++// only have to pay one cacheline capacity to monitor both.
++gtm_rwlock GTM::gtm_thread::serial_lock
++  __attribute__((aligned(HW_CACHELINE_SIZE)));
+ gtm_thread *GTM::gtm_thread::list_of_threads = 0;
+ unsigned GTM::gtm_thread::number_of_threads = 0;
+ 
+@@ -54,9 +58,6 @@ static pthread_mutex_t global_tid_lock = PTHREAD_MUTEX_INITIALIZER;
+ static pthread_key_t thr_release_key;
+ static pthread_once_t thr_release_once = PTHREAD_ONCE_INIT;
+ 
+-// See gtm_thread::begin_transaction.
+-uint32_t GTM::htm_fastpath = 0;
+-
+ /* Allocate a transaction structure.  */
+ void *
+ GTM::gtm_thread::operator new (size_t s)
+@@ -174,9 +175,11 @@ GTM::gtm_thread::begin_transaction (uint32_t prop, const gtm_jmpbuf *jb)
+   // lock's writer flag and thus abort if another thread is or becomes a
+   // serial transaction.  Therefore, if the fastpath is enabled, then a
+   // transaction is not executing as a HW transaction iff the serial lock is
+-  // write-locked.  This allows us to use htm_fastpath and the serial lock's
+-  // writer flag to reliable determine whether the current thread runs a HW
+-  // transaction, and thus we do not need to maintain this information in
++  // write-locked.  Also, HW transactions monitor the fastpath control
++  // variable, so that they will only execute if dispatch_htm is still the
++  // current method group.  This allows us to use htm_fastpath and the serial
++  // lock's writers flag to reliable determine whether the current thread runs
++  // a HW transaction, and thus we do not need to maintain this information in
+   // per-thread state.
+   // If an uninstrumented code path is not available, we can still run
+   // instrumented code from a HW transaction because the HTM fastpath kicks
+@@ -187,9 +190,14 @@ GTM::gtm_thread::begin_transaction (uint32_t prop, const gtm_jmpbuf *jb)
+   // indeed in serial mode, and HW transactions should never need serial mode
+   // for any internal changes (e.g., they never abort visibly to the STM code
+   // and thus do not trigger the standard retry handling).
+-  if (likely(htm_fastpath && (prop & pr_hasNoAbort)))
++  if (likely(serial_lock.get_htm_fastpath() && (prop & pr_hasNoAbort)))
+     {
+-      for (uint32_t t = htm_fastpath; t; t--)
++      // Note that the snapshot of htm_fastpath that we take here could be
++      // outdated, and a different method group than dispatch_htm may have
++      // been chosen in the meantime.  Therefore, take care not not touch
++      // anything besides the serial lock, which is independent of method
++      // groups.
++      for (uint32_t t = serial_lock.get_htm_fastpath(); t; t--)
+ 	{
+ 	  uint32_t ret = htm_begin();
+ 	  if (htm_begin_success(ret))
+@@ -197,9 +205,11 @@ GTM::gtm_thread::begin_transaction (uint32_t prop, const gtm_jmpbuf *jb)
+ 	      // We are executing a transaction now.
+ 	      // Monitor the writer flag in the serial-mode lock, and abort
+ 	      // if there is an active or waiting serial-mode transaction.
++	      // Also checks that htm_fastpath is still nonzero and thus
++	      // HW transactions are allowed to run.
+ 	      // Note that this can also happen due to an enclosing
+ 	      // serial-mode transaction; we handle this case below.
+-	      if (unlikely(serial_lock.is_write_locked()))
++	      if (unlikely(serial_lock.htm_fastpath_disabled()))
+ 		htm_abort();
+ 	      else
+ 		// We do not need to set a_saveLiveVariables because of HTM.
+@@ -210,9 +220,12 @@ GTM::gtm_thread::begin_transaction (uint32_t prop, const gtm_jmpbuf *jb)
+ 	  // retrying the transaction will be successful.
+ 	  if (!htm_abort_should_retry(ret))
+ 	    break;
++	  // Check whether the HTM fastpath has been disabled.
++	  if (!serial_lock.get_htm_fastpath())
++	    break;
+ 	  // Wait until any concurrent serial-mode transactions have finished.
+ 	  // This is an empty critical section, but won't be elided.
+-	  if (serial_lock.is_write_locked())
++	  if (serial_lock.htm_fastpath_disabled())
+ 	    {
+ 	      tx = gtm_thr();
+ 	      if (unlikely(tx == NULL))
+@@ -618,7 +631,7 @@ _ITM_commitTransaction(void)
+   // a serial-mode transaction.  If we are, then there will be no other
+   // concurrent serial-mode transaction.
+   // See gtm_thread::begin_transaction.
+-  if (likely(htm_fastpath && !gtm_thread::serial_lock.is_write_locked()))
++  if (likely(!gtm_thread::serial_lock.htm_fastpath_disabled()))
+     {
+       htm_commit();
+       return;
+@@ -634,7 +647,7 @@ _ITM_commitTransactionEH(void *exc_ptr)
+ {
+ #if defined(USE_HTM_FASTPATH)
+   // See _ITM_commitTransaction.
+-  if (likely(htm_fastpath && !gtm_thread::serial_lock.is_write_locked()))
++  if (likely(!gtm_thread::serial_lock.htm_fastpath_disabled()))
+     {
+       htm_commit();
+       return;
+--- libitm/config/linux/rwlock.h
++++ libitm/config/linux/rwlock.h
+@@ -39,16 +39,29 @@ struct gtm_thread;
+ //
+ // In this implementation, writers are given highest priority access but
+ // read-to-write upgrades do not have a higher priority than writers.
++//
++// Do not change the layout of this class; it must remain a POD type with
++// standard layout, and the writers field must be first (i.e., so the
++// assembler code can assume that its address is equal to the address of the
++// respective instance of the class), and htm_fastpath must be second.
+ 
+ class gtm_rwlock
+ {
+-  // TODO Put futexes on different cachelines?
+   std::atomic<int> writers;       // Writers' futex.
++  // We put the HTM fastpath control variable here so that HTM fastpath
++  // transactions can check efficiently whether they are allowed to run.
++  // This must be accessed atomically because threads can load this value
++  // when they are neither a registered reader nor writer (i.e., when they
++  // attempt to execute the HTM fastpath).
++  std::atomic<uint32_t> htm_fastpath;
++  // TODO Put these futexes on different cachelines?  (writers and htm_fastpath
++  // should remain on the same cacheline.
+   std::atomic<int> writer_readers;// A confirmed writer waits here for readers.
+   std::atomic<int> readers;       // Readers wait here for writers (iff true).
+ 
+  public:
+-  gtm_rwlock() : writers(0), writer_readers(0), readers(0) {};
++  gtm_rwlock() : writers(0), htm_fastpath(0), writer_readers(0), readers(0)
++  { }
+ 
+   void read_lock (gtm_thread *tx);
+   void read_unlock (gtm_thread *tx);
+@@ -59,12 +72,28 @@ class gtm_rwlock
+   bool write_upgrade (gtm_thread *tx);
+   void write_upgrade_finish (gtm_thread *tx);
+ 
+-  // Returns true iff there is a concurrent active or waiting writer.
+-  // This is primarily useful for simple HyTM approaches, and the value being
+-  // checked is loaded with memory_order_relaxed.
+-  bool is_write_locked()
++  // Returns true iff there is a concurrent active or waiting writer, or
++  // htm_fastpath is zero. This is primarily useful for simple HyTM
++  // approaches, and the values being checked are loaded with
++  // memory_order_relaxed.
++  bool htm_fastpath_disabled ()
++  {
++    return writers.load (memory_order_relaxed) != 0
++	|| htm_fastpath.load (memory_order_relaxed) == 0;
++  }
++
++  // This does not need to return an exact value, hence relaxed MO is
++  // sufficient.
++  uint32_t get_htm_fastpath ()
++  {
++    return htm_fastpath.load (memory_order_relaxed);
++  }
++  // This must only be called while having acquired the write lock, and other
++  // threads do not need to load an exact value; hence relaxed MO is
++  // sufficient.
++  void set_htm_fastpath (uint32_t val)
+   {
+-    return writers.load (memory_order_relaxed) != 0;
++    htm_fastpath.store (val, memory_order_relaxed);
+   }
+ 
+  protected:
+--- libitm/config/posix/rwlock.h
++++ libitm/config/posix/rwlock.h
+@@ -44,19 +44,32 @@ struct gtm_thread;
+ //
+ // In this implementation, writers are given highest priority access but
+ // read-to-write upgrades do not have a higher priority than writers.
++//
++// Do not change the layout of this class; it must remain a POD type with
++// standard layout, and the summary field must be first (i.e., so the
++// assembler code can assume that its address is equal to the address of the
++// respective instance of the class), and htm_fastpath must be second.
+ 
+ class gtm_rwlock
+ {
+-  pthread_mutex_t mutex;	        // Held if manipulating any field.
+-  pthread_cond_t c_readers;	        // Readers wait here
+-  pthread_cond_t c_writers;	        // Writers wait here for writers
+-  pthread_cond_t c_confirmed_writers;	// Writers wait here for readers
+-
+   static const unsigned a_writer  = 1;	// An active writer.
+   static const unsigned w_writer  = 2;	// The w_writers field != 0
+   static const unsigned w_reader  = 4;  // The w_readers field != 0
+ 
+   std::atomic<unsigned int> summary;	// Bitmask of the above.
++
++  // We put the HTM fastpath control variable here so that HTM fastpath
++  // transactions can check efficiently whether they are allowed to run.
++  // This must be accessed atomically because threads can load this value
++  // when they are neither a registered reader nor writer (i.e., when they
++  // attempt to execute the HTM fastpath).
++  std::atomic<uint32_t> htm_fastpath;
++
++  pthread_mutex_t mutex;	        // Held if manipulating any field.
++  pthread_cond_t c_readers;	        // Readers wait here
++  pthread_cond_t c_writers;	        // Writers wait here for writers
++  pthread_cond_t c_confirmed_writers;	// Writers wait here for readers
++
+   unsigned int a_readers;	// Nr active readers as observed by a writer
+   unsigned int w_readers;	// Nr waiting readers
+   unsigned int w_writers;	// Nr waiting writers
+@@ -74,12 +87,28 @@ class gtm_rwlock
+   bool write_upgrade (gtm_thread *tx);
+   void write_upgrade_finish (gtm_thread *tx);
+ 
+-  // Returns true iff there is a concurrent active or waiting writer.
+-  // This is primarily useful for simple HyTM approaches, and the value being
+-  // checked is loaded with memory_order_relaxed.
+-  bool is_write_locked()
++  // Returns true iff there is a concurrent active or waiting writer, or
++  // htm_fastpath is zero. This is primarily useful for simple HyTM
++  // approaches, and the values being checked are loaded with
++  // memory_order_relaxed.
++  bool htm_fastpath_disabled ()
++  {
++    return (summary.load (memory_order_relaxed) & (a_writer | w_writer))
++	|| htm_fastpath.load (memory_order_relaxed) == 0;
++  }
++
++  // This does not need to return an exact value, hence relaxed MO is
++  // sufficient.
++  uint32_t get_htm_fastpath ()
++  {
++    return htm_fastpath.load (memory_order_relaxed);
++  }
++  // This must only be called while having acquired the write lock, and other
++  // threads do not need to load an exact value; hence relaxed MO is
++  // sufficient.
++  void set_htm_fastpath (uint32_t val)
+   {
+-    return summary.load (memory_order_relaxed) & (a_writer | w_writer);
++    htm_fastpath.store (val, memory_order_relaxed);
+   }
+ 
+  protected:
+--- libitm/config/posix/rwlock.cc
++++ libitm/config/posix/rwlock.cc
+@@ -30,11 +30,12 @@ namespace GTM HIDDEN {
+ // ??? Move this back to the header file when constexpr is implemented.
+ 
+ gtm_rwlock::gtm_rwlock()
+-  : mutex (PTHREAD_MUTEX_INITIALIZER),
++  : summary (0),
++    htm_fastpath (0),
++    mutex (PTHREAD_MUTEX_INITIALIZER),
+     c_readers (PTHREAD_COND_INITIALIZER),
+     c_writers (PTHREAD_COND_INITIALIZER),
+     c_confirmed_writers (PTHREAD_COND_INITIALIZER),
+-    summary (0),
+     a_readers (0),
+     w_readers (0),
+     w_writers (0)
+--- libitm/libitm_i.h
++++ libitm/libitm_i.h
+@@ -336,10 +336,6 @@ extern abi_dispatch *dispatch_htm();
+ 
+ extern gtm_cacheline_mask gtm_mask_stack(gtm_cacheline *, gtm_cacheline_mask);
+ 
+-// Control variable for the HTM fastpath that uses serial mode as fallback.
+-// Non-zero if the HTM fastpath is enabled. See gtm_thread::begin_transaction.
+-extern uint32_t htm_fastpath;
+-
+ } // namespace GTM
+ 
+ #endif // LIBITM_I_H
+--- libitm/method-serial.cc
++++ libitm/method-serial.cc
+@@ -222,13 +222,13 @@ struct htm_mg : public method_group
+     // Enable the HTM fastpath if the HW is available.  The fastpath is
+     // initially disabled.
+ #ifdef USE_HTM_FASTPATH
+-    htm_fastpath = htm_init();
++    gtm_thread::serial_lock.set_htm_fastpath(htm_init());
+ #endif
+   }
+   virtual void fini()
+   {
+     // Disable the HTM fastpath.
+-    htm_fastpath = 0;
++    gtm_thread::serial_lock.set_htm_fastpath(0);
+   }
+ };
+ 
+@@ -288,7 +288,7 @@ GTM::gtm_thread::serialirr_mode ()
+ #if defined(USE_HTM_FASTPATH)
+   // HTM fastpath.  If we are executing a HW transaction, don't go serial but
+   // continue.  See gtm_thread::begin_transaction.
+-  if (likely(htm_fastpath && !gtm_thread::serial_lock.is_write_locked()))
++  if (likely(!gtm_thread::serial_lock.htm_fastpath_disabled()))
+     return;
+ #endif
+ 
+--- libitm/query.cc
++++ libitm/query.cc
+@@ -49,7 +49,7 @@ _ITM_inTransaction (void)
+   // a transaction and thus we can't deduce this by looking at just the serial
+   // lock.  This function isn't used in practice currently, so the easiest
+   // way to handle it is to just abort.
+-  if (htm_fastpath && htm_transaction_active())
++  if (gtm_thread::serial_lock.get_htm_fastpath() && htm_transaction_active())
+     htm_abort();
+ #endif
+   struct gtm_thread *tx = gtm_thr();
+@@ -69,7 +69,7 @@ _ITM_getTransactionId (void)
+ {
+ #if defined(USE_HTM_FASTPATH)
+   // See ITM_inTransaction.
+-  if (htm_fastpath && htm_transaction_active())
++  if (gtm_thread::serial_lock.get_htm_fastpath() && htm_transaction_active())
+     htm_abort();
+ #endif
+   struct gtm_thread *tx = gtm_thr();

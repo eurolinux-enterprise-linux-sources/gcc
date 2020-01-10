@@ -1,0 +1,223 @@
+2017-07-25  Jonathan Wakely  <jwakely@redhat.com>
+ 
+	PR libstdc++/53984
+	* include/bits/basic_ios.h (basic_ios::_M_setstate): Adjust comment.
+	* include/bits/istream.tcc (basic_istream::sentry): Handle exceptions
+	during construction.
+	* include/std/istream: Adjust comments for formatted input functions
+	and unformatted input functions.
+	* testsuite/27_io/basic_fstream/53984.cc: New.
+	* testsuite/27_io/basic_istream/sentry/char/53984.cc: New.
+
+--- libstdc++-v3/include/bits/basic_ios.h
++++ libstdc++-v3/include/bits/basic_ios.h
+@@ -157,8 +157,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       setstate(iostate __state)
+       { this->clear(this->rdstate() | __state); }
+ 
+-      // Flip the internal state on for the proper state bits, then re
+-      // throws the propagated exception if bit also set in
++      // Flip the internal state on for the proper state bits, then
++      // rethrows the propagated exception if bit also set in
+       // exceptions().
+       void
+       _M_setstate(iostate __state)
+--- libstdc++-v3/include/bits/istream.tcc
++++ libstdc++-v3/include/bits/istream.tcc
+@@ -48,28 +48,36 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+     {
+       ios_base::iostate __err = ios_base::goodbit;
+       if (__in.good())
+-	{
+-	  if (__in.tie())
+-	    __in.tie()->flush();
+-	  if (!__noskip && bool(__in.flags() & ios_base::skipws))
+-	    {
+-	      const __int_type __eof = traits_type::eof();
+-	      __streambuf_type* __sb = __in.rdbuf();
+-	      __int_type __c = __sb->sgetc();
+-
+-	      const __ctype_type& __ct = __check_facet(__in._M_ctype);
+-	      while (!traits_type::eq_int_type(__c, __eof)
+-		     && __ct.is(ctype_base::space, 
+-				traits_type::to_char_type(__c)))
+-		__c = __sb->snextc();
++	__try
++	  {
++	    if (__in.tie())
++	      __in.tie()->flush();
++	    if (!__noskip && bool(__in.flags() & ios_base::skipws))
++	      {
++		const __int_type __eof = traits_type::eof();
++		__streambuf_type* __sb = __in.rdbuf();
++		__int_type __c = __sb->sgetc();
++
++		const __ctype_type& __ct = __check_facet(__in._M_ctype);
++		while (!traits_type::eq_int_type(__c, __eof)
++		       && __ct.is(ctype_base::space,
++				  traits_type::to_char_type(__c)))
++		  __c = __sb->snextc();
+ 
+-	      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+-	      // 195. Should basic_istream::sentry's constructor ever
+-	      // set eofbit?
+-	      if (traits_type::eq_int_type(__c, __eof))
+-		__err |= ios_base::eofbit;
+-	    }
+-	}
++		// _GLIBCXX_RESOLVE_LIB_DEFECTS
++		// 195. Should basic_istream::sentry's constructor ever
++		// set eofbit?
++		if (traits_type::eq_int_type(__c, __eof))
++		  __err |= ios_base::eofbit;
++	      }
++	  }
++	__catch(__cxxabiv1::__forced_unwind&)
++	  {
++	    __in._M_setstate(ios_base::badbit);
++	    __throw_exception_again;
++	  }
++	__catch(...)
++	  { __in._M_setstate(ios_base::badbit); }
+ 
+       if (__in.good() && __err == ios_base::goodbit)
+ 	_M_ok = true;
+--- libstdc++-v3/include/std/istream
++++ libstdc++-v3/include/std/istream
+@@ -150,9 +150,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+        *  whatever data is appropriate for the type of the argument.
+        *
+        *  If an exception is thrown during extraction, ios_base::badbit
+-       *  will be turned on in the stream's error state without causing an
+-       *  ios_base::failure to be thrown.  The original exception will then
+-       *  be rethrown.
++       *  will be turned on in the stream's error state (without causing an
++       *  ios_base::failure to be thrown) and the original exception will
++       *  be rethrown if badbit is set in the exceptions mask.
+       */
+ 
+       //@{
+@@ -286,9 +286,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+        *  by gcount().
+        *
+        *  If an exception is thrown during extraction, ios_base::badbit
+-       *  will be turned on in the stream's error state without causing an
+-       *  ios_base::failure to be thrown.  The original exception will then
+-       *  be rethrown.
++       *  will be turned on in the stream's error state (without causing an
++       *  ios_base::failure to be thrown) and the original exception will
++       *  be rethrown if badbit is set in the exceptions mask.
+       */
+ 
+       /**
+--- /dev/null
++++ libstdc++-v3/testsuite/27_io/basic_fstream/53984.cc
+@@ -0,0 +1,64 @@
++// Copyright (C) 2017 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-require-fileio "" }
++
++// PR libstdc++/53984
++
++#include <fstream>
++#include <testsuite_hooks.h>
++
++void
++test01()
++{
++  std::ifstream in(".");
++  if (in)
++  {
++    char c;
++    if (in.get(c))
++    {
++      // Reading a directory doesn't produce an error on this target
++      // so the formatted input functions below wouldn't fail anyway
++      // (see PR libstdc++/81808).
++      return;
++    }
++    int x;
++    in.clear();
++    // Formatted input function should set badbit, but not throw:
++    in >> x;
++    VERIFY( in.bad() );
++
++    in.clear();
++    in.exceptions(std::ios::badbit);
++    try
++    {
++      // Formatted input function should set badbit, and throw:
++      in >> x;
++      VERIFY( false );
++    }
++    catch (const std::exception&)
++    {
++      VERIFY( in.bad() );
++    }
++  }
++}
++
++int
++main()
++{
++  test01();
++}
+--- /dev/null
++++ libstdc++-v3/testsuite/27_io/basic_istream/sentry/char/53984.cc
+@@ -0,0 +1,41 @@
++// Copyright (C) 2017 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++#include <streambuf>
++#include <istream>
++#include <testsuite_hooks.h>
++
++struct SB : std::streambuf
++{
++  virtual int_type underflow() { throw 1; }
++};
++
++void
++test01()
++{
++  SB sb;
++  std::istream is(&sb);
++  int i;
++  is >> i;
++  VERIFY( is.bad() );
++}
++
++int
++main()
++{
++  test01();
++}

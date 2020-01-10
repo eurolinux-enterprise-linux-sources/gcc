@@ -1,0 +1,14 @@
+2015-09-02  Alan Modra  <amodra@gmail.com>
+
+	* config/rs6000/sysv4.h (LINK_SPEC): Delete link_target.
+
+--- gcc/config/rs6000/sysv4.h	(revision 227396)
++++ gcc/config/rs6000/sysv4.h	(revision 227397)
+@@ -574,7 +574,6 @@ ENDIAN_SELECT(" -mbig", " -mlittle", DEF
+ %{R*} \
+ %(link_shlib) \
+ %{!T*: %(link_start) } \
+-%(link_target) \
+ %(link_os)"
+ 
+ /* Shared libraries are not default.  */
