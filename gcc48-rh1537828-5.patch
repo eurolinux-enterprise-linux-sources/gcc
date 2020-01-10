@@ -1,0 +1,80 @@
+commit 5fdcac79eb72406c59fa72073dfb3ba21380f56d
+Author: ktkachov <ktkachov@138bc75d-0d04-0410-961f-82ee72b054a4>
+Date:   Tue Apr 10 09:58:57 2018 +0000
+
+    [explow] PR target/85173: validize memory before passing it on to target probe_stack
+    
+    In this PR the expansion code emits an invalid memory address for the stack probe, which the backend fails to recognise.
+    The address is created explicitly in anti_adjust_stack_and_probe_stack_clash in explow.c and passed down to gen_probe_stack
+    without any validation in emit_stack_probe.
+    
+    This patch fixes the ICE by calling validize_mem on the memory location before passing it down to the target.
+    Jakub pointed out that we also want to create valid addresses for the probe_stack_address case, so this patch
+    creates an expand operand and legitimizes it before passing it down to the probe_stack_address expander.
+    
+    This patch passes bootstrap and testing on arm-none-linux-gnueabihf and aarch64-none-linux-gnu
+    and ppc64le-redhat-linux on gcc112 in the compile farm.
+    
+            PR target/85173
+            * explow.c (emit_stack_probe): Call validize_mem on memory location
+            before passing it to gen_probe_stack.  Create address operand and
+            legitimize it for the probe_stack_address case.
+    
+            * gcc.target/arm/pr85173.c: New test.
+    
+    
+    
+    git-svn-id: svn+ssh://gcc.gnu.org/svn/gcc/trunk@259266 138bc75d-0d04-0410-961f-82ee72b054a4
+
+diff --git a/gcc/explow.c b/gcc/explow.c
+index 9386489..e2253ae 100644
+--- a/gcc/explow.c
++++ b/gcc/explow.c
+@@ -1549,13 +1549,20 @@ emit_stack_probe (rtx address)
+ {
+ #ifdef HAVE_probe_stack_address
+   if (HAVE_probe_stack_address)
+-    emit_insn (gen_probe_stack_address (address));
++    {
++      struct expand_operand ops[1];
++      insn_code icode = targetm.code_for_probe_stack_address;
++      create_address_operand (ops, address);
++      maybe_legitimize_operands (icode, 0, 1, ops);
++      expand_insn (icode, 1, ops);
++    }
+   else
+ #endif
+     {
+       rtx memref = gen_rtx_MEM (word_mode, address);
+ 
+       MEM_VOLATILE_P (memref) = 1;
++      memref = validize_mem (memref);
+ 
+       /* See if we have an insn to probe the stack.  */
+ #ifdef HAVE_probe_stack
+diff --git a/gcc/testsuite/gcc.target/arm/pr85173.c b/gcc/testsuite/gcc.target/arm/pr85173.c
+new file mode 100644
+index 0000000..36105c9
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/arm/pr85173.c
+@@ -0,0 +1,20 @@
++/* PR target/85173.  */
++
++/* { dg-do compile } */
++/* { dg-options "-O2 -fstack-clash-protection --param stack-clash-protection-probe-interval=14" } */
++/* { dg-require-effective-target arm_thumb2_ok } */
++
++__attribute__((noinline, noclone)) void
++foo (char *p)
++{
++  asm volatile ("" : : "r" (p) : "memory");
++}
++
++/* Nonconstant alloca, small local frame.  */
++__attribute__((noinline, noclone)) void
++f5 (int x)
++{
++  char locals[128];
++  char *vla = __builtin_alloca (x);
++  foo (vla);
++}

@@ -1,0 +1,516 @@
+diff --git a/gcc/config/i386/constraints.md b/gcc/config/i386/constraints.md
+index 43faabb7e87..328a90f45d1 100644
+--- a/gcc/config/i386/constraints.md
++++ b/gcc/config/i386/constraints.md
+@@ -135,7 +135,7 @@
+ 
+ (define_constraint "w"
+   "@internal Call memory operand."
+-  (and (not (match_test "ix86_indirect_branch_register"))
++  (and (not (match_test "TARGET_INDIRECT_BRANCH_REGISTER"))
+        (not (match_test "TARGET_X32"))
+        (match_operand 0 "memory_operand")))
+ 
+diff --git a/gcc/config/i386/i386.h b/gcc/config/i386/i386.h
+index 8ff702615b6..95206478001 100644
+--- a/gcc/config/i386/i386.h
++++ b/gcc/config/i386/i386.h
+@@ -2413,6 +2413,10 @@ extern void debug_dispatch_window (int);
+ #define TARGET_RECIP_VEC_DIV	((recip_mask & RECIP_MASK_VEC_DIV) != 0)
+ #define TARGET_RECIP_VEC_SQRT	((recip_mask & RECIP_MASK_VEC_SQRT) != 0)
+ 
++#define TARGET_INDIRECT_BRANCH_REGISTER \
++  (ix86_indirect_branch_register \
++   || cfun->machine->indirect_branch_type != indirect_branch_keep)
++
+ #define IX86_HLE_ACQUIRE (1 << 16)
+ #define IX86_HLE_RELEASE (1 << 17)
+ 
+diff --git a/gcc/config/i386/i386.md b/gcc/config/i386/i386.md
+index 3320ec233d2..7a83d079bfc 100644
+--- a/gcc/config/i386/i386.md
++++ b/gcc/config/i386/i386.md
+@@ -11274,7 +11274,7 @@
+   [(set (pc) (match_operand 0 "indirect_branch_operand"))]
+   ""
+ {
+-  if (TARGET_X32 || ix86_indirect_branch_register)
++  if (TARGET_X32 || TARGET_INDIRECT_BRANCH_REGISTER)
+     operands[0] = convert_memory_address (word_mode, operands[0]);
+   cfun->machine->has_local_indirect_jump = true;
+ })
+@@ -11327,7 +11327,7 @@
+ 					 OPTAB_DIRECT);
+     }
+ 
+-  if (TARGET_X32 || ix86_indirect_branch_register)
++  if (TARGET_X32 || TARGET_INDIRECT_BRANCH_REGISTER)
+     operands[0] = convert_memory_address (word_mode, operands[0]);
+   cfun->machine->has_local_indirect_jump = true;
+ })
+diff --git a/gcc/config/i386/predicates.md b/gcc/config/i386/predicates.md
+index 6c7a593084c..f6cf50ad6f5 100644
+--- a/gcc/config/i386/predicates.md
++++ b/gcc/config/i386/predicates.md
+@@ -540,7 +540,7 @@
+ ;; Test for a valid operand for indirect branch.
+ (define_predicate "indirect_branch_operand"
+   (ior (match_operand 0 "register_operand")
+-       (and (not (match_test "ix86_indirect_branch_register"))
++       (and (not (match_test "TARGET_INDIRECT_BRANCH_REGISTER"))
+ 	    (not (match_test "TARGET_X32"))
+ 	    (match_operand 0 "memory_operand"))))
+ 
+@@ -550,7 +550,7 @@
+   (ior (match_test "constant_call_address_operand
+ 		     (op, mode == VOIDmode ? mode : Pmode)")
+        (match_operand 0 "call_register_no_elim_operand")
+-       (and (not (match_test "ix86_indirect_branch_register"))
++       (and (not (match_test "TARGET_INDIRECT_BRANCH_REGISTER"))
+ 	    (and (not (match_test "TARGET_X32"))
+ 		 (match_operand 0 "memory_operand")))))
+ 
+diff --git a/gcc/testsuite/gcc.target/i386/indirect-thunk-1.c b/gcc/testsuite/gcc.target/i386/indirect-thunk-1.c
+index 321db770c35..135bc73b9ce 100644
+--- a/gcc/testsuite/gcc.target/i386/indirect-thunk-1.c
++++ b/gcc/testsuite/gcc.target/i386/indirect-thunk-1.c
+@@ -14,7 +14,7 @@ male_indirect_jump (long offset)
+ /* Our gcc-4.8 based compiler is not as aggressive at sibcalls
+    where the target is in a MEM.  Thus we have to scan for different
+    patterns here than in newer compilers.  */
+-/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
+ /* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
+ /* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+ /* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
+diff --git a/gcc/testsuite/gcc.target/i386/indirect-thunk-2.c b/gcc/testsuite/gcc.target/i386/indirect-thunk-2.c
+index d58451660f8..867df67143b 100644
+--- a/gcc/testsuite/gcc.target/i386/indirect-thunk-2.c
++++ b/gcc/testsuite/gcc.target/i386/indirect-thunk-2.c
+@@ -14,7 +14,7 @@ male_indirect_jump (long offset)
+ /* Our gcc-4.8 based compiler is not as aggressive at sibcalls
+    where the target is in a MEM.  Thus we have to scan for different
+    patterns here than in newer compilers.  */
+-/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
+ /* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
+ /* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+ /* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
+diff --git a/gcc/testsuite/gcc.target/i386/indirect-thunk-3.c b/gcc/testsuite/gcc.target/i386/indirect-thunk-3.c
+index 9e24a385387..2c7fb52b59d 100644
+--- a/gcc/testsuite/gcc.target/i386/indirect-thunk-3.c
++++ b/gcc/testsuite/gcc.target/i386/indirect-thunk-3.c
+@@ -12,9 +12,8 @@ male_indirect_jump (long offset)
+   return 0;
+ }
+ 
+-/* { dg-final { scan-assembler "push(?:l|q)\[ \t\]*_?dispatch" { target { { ! x32 } && *-*-linux* } } } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk" { target { ! x32 } } } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" { target x32 } } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
+ /* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+ /* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
+ /* { dg-final { scan-assembler {\tpause} } } */
+diff --git a/gcc/testsuite/gcc.target/i386/indirect-thunk-4.c b/gcc/testsuite/gcc.target/i386/indirect-thunk-4.c
+index 127b5d94523..0d3f895009d 100644
+--- a/gcc/testsuite/gcc.target/i386/indirect-thunk-4.c
++++ b/gcc/testsuite/gcc.target/i386/indirect-thunk-4.c
+@@ -12,9 +12,8 @@ male_indirect_jump (long offset)
+   return 0;
+ }
+ 
+-/* { dg-final { scan-assembler "push(?:l|q)\[ \t\]*_?dispatch" { target { { ! x32 } && *-*-linux* } } } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk" { target { ! x32 } } } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" { target x32 } } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
+ /* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+ /* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
+ /* { dg-final { scan-assembler {\tpause} } } */
+diff --git a/gcc/testsuite/gcc.target/i386/indirect-thunk-7.c b/gcc/testsuite/gcc.target/i386/indirect-thunk-7.c
+index 17c2d0faf88..3c72036dbaf 100644
+--- a/gcc/testsuite/gcc.target/i386/indirect-thunk-7.c
++++ b/gcc/testsuite/gcc.target/i386/indirect-thunk-7.c
+@@ -35,9 +35,8 @@ bar (int i)
+     }
+ }
+ 
+-/* { dg-final { scan-assembler "push(?:l|q)\[ \t\]*\.L\[0-9\]+\\(,%" { target { { ! x32 } && *-*-linux* } } } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk" { target { ! x32 } } } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk_(r|e)ax" { target x32 } } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*\.L\[0-9\]+\\(,%" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
+ /* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+ /* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
+ /* { dg-final { scan-assembler {\tpause} } } */
+diff --git a/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-1.c b/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-1.c
+index cd7e8d78199..e20816781f9 100644
+--- a/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-1.c
++++ b/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-1.c
+@@ -17,7 +17,7 @@ male_indirect_jump (long offset)
+ /* Our gcc-4.8 based compiler is not as aggressive at sibcalls
+    where the target is in a MEM.  Thus we have to scan for different
+    patterns here than in newer compilers.  */
+-/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
+ /* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
+ /* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+ /* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
+diff --git a/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-2.c b/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-2.c
+index 4dbd7a5e5d3..0f30d74ee37 100644
+--- a/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-2.c
++++ b/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-2.c
+@@ -15,7 +15,7 @@ male_indirect_jump (long offset)
+ /* Our gcc-4.8 based compiler is not as aggressive at sibcalls
+    where the target is in a MEM.  Thus we have to scan for different
+    patterns here than in newer compilers.  */
+-/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
+ /* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
+ /* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+ /* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
+diff --git a/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-3.c b/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-3.c
+index 4aeec1833cd..89a2bac8403 100644
+--- a/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-3.c
++++ b/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-3.c
+@@ -14,10 +14,9 @@ male_indirect_jump (long offset)
+   return 0;
+ }
+ 
+-/* { dg-final { scan-assembler "push(?:l|q)\[ \t\]*_?dispatch" { target { { ! x32 } && *-*-linux* } } } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
+ /* { dg-final { scan-assembler-times "jmp\[ \t\]*\.LIND" 2 } } */
+ /* { dg-final { scan-assembler-times "call\[ \t\]*\.LIND" 2 } } */
+ /* { dg-final { scan-assembler {\tpause} } } */
+ /* { dg-final { scan-assembler {\tlfence} } } */
+ /* { dg-final { scan-assembler-not "__x86_indirect_thunk" } } */
+-/* { dg-final { scan-assembler-not "pushq\[ \t\]%rax" { target x32 } } } */
+diff --git a/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-4.c b/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-4.c
+index ac0e5999f63..3eb83c3779a 100644
+--- a/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-4.c
++++ b/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-4.c
+@@ -13,10 +13,9 @@ male_indirect_jump (long offset)
+   return 0;
+ }
+ 
+-/* { dg-final { scan-assembler "push(?:l|q)\[ \t\]*_?dispatch" { target { { ! x32 } && *-*-linux* } } } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
+ /* { dg-final { scan-assembler-times "jmp\[ \t\]*\.LIND" 2 } } */
+ /* { dg-final { scan-assembler-times "call\[ \t\]*\.LIND" 2 } } */
+ /* { dg-final { scan-assembler {\tpause} } } */
+ /* { dg-final { scan-assembler {\tlfence} } } */
+ /* { dg-final { scan-assembler-not "__x86_indirect_thunk" } } */
+-/* { dg-final { scan-assembler-not "pushq\[ \t\]%rax" { target x32 } } } */
+diff --git a/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-5.c b/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-5.c
+index 573cf1ef09e..0098dd1133d 100644
+--- a/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-5.c
++++ b/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-5.c
+@@ -14,9 +14,8 @@ male_indirect_jump (long offset)
+   return 0;
+ }
+ 
+-/* { dg-final { scan-assembler "push(?:l|q)\[ \t\]*_?dispatch" { target { { ! x32 } && *-*-linux* } } } } */
+-/* { dg-final { scan-assembler-times "jmp\[ \t\]*\.LIND" 1 { target { ! x32 } } } } */
+-/* { dg-final { scan-assembler-times "call\[ \t\]*\.LIND" 1 { target { ! x32 } } } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk" { target { ! x32 } } } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" { target x32 } } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
+ /* { dg-final { scan-assembler-not {\t(lfence|pause)} } } */
++/* { dg-final { scan-assembler-not "jmp\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler-not "call\[ \t\]*\.LIND" } } */
+diff --git a/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-6.c b/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-6.c
+index b2b37fc6e2e..ece8de15a4b 100644
+--- a/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-6.c
++++ b/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-6.c
+@@ -13,9 +13,8 @@ male_indirect_jump (long offset)
+   return 0;
+ }
+ 
+-/* { dg-final { scan-assembler "push(?:l|q)\[ \t\]*_?dispatch" { target { { ! x32 } && *-*-linux* } } } } */
+-/* { dg-final { scan-assembler-times "jmp\[ \t\]*\.LIND" 1 { target { ! x32 } } } } */
+-/* { dg-final { scan-assembler-times "call\[ \t\]*\.LIND" 1 { target { ! x32 } } } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk" { target { ! x32 } } } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" { target x32 } } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
+ /* { dg-final { scan-assembler-not {\t(lfence|pause)} } } */
++/* { dg-final { scan-assembler-not "jmp\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler-not "call\[ \t\]*\.LIND" } } */
+diff --git a/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-7.c b/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-7.c
+index 4a43e199931..d53fc887dcc 100644
+--- a/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-7.c
++++ b/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-7.c
+@@ -36,9 +36,8 @@ bar (int i)
+     }
+ }
+ 
+-/* { dg-final { scan-assembler "push(?:l|q)\[ \t\]*\.L\[0-9\]+\\(,%" { target { { ! x32 } && *-*-linux* } } } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk_(r|e)ax" { target x32 } } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk" } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*\.L\[0-9\]+\\(,%" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
+ /* { dg-final { scan-assembler-not {\t(lfence|pause)} } } */
+ /* { dg-final { scan-assembler-not "jmp\[ \t\]*\.LIND" } } */
+ /* { dg-final { scan-assembler-not "call\[ \t\]*\.LIND" } } */
+diff --git a/gcc/testsuite/gcc.target/i386/indirect-thunk-extern-1.c b/gcc/testsuite/gcc.target/i386/indirect-thunk-extern-1.c
+index 72de88e04aa..1f78b07f84a 100644
+--- a/gcc/testsuite/gcc.target/i386/indirect-thunk-extern-1.c
++++ b/gcc/testsuite/gcc.target/i386/indirect-thunk-extern-1.c
+@@ -14,7 +14,7 @@ male_indirect_jump (long offset)
+ /* Our gcc-4.8 based compiler is not as aggressive at sibcalls
+    where the target is in a MEM.  Thus we have to scan for different
+    patterns here than in newer compilers.  */
+-/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
+ /* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
+ /* { dg-final { scan-assembler-not {\t(lfence|pause)} } } */
+ /* { dg-final { scan-assembler-not "jmp\[ \t\]*\.LIND" } } */
+diff --git a/gcc/testsuite/gcc.target/i386/indirect-thunk-extern-2.c b/gcc/testsuite/gcc.target/i386/indirect-thunk-extern-2.c
+index d4137b38a1e..5397a5874aa 100644
+--- a/gcc/testsuite/gcc.target/i386/indirect-thunk-extern-2.c
++++ b/gcc/testsuite/gcc.target/i386/indirect-thunk-extern-2.c
+@@ -14,7 +14,7 @@ male_indirect_jump (long offset)
+ /* Our gcc-4.8 based compiler is not as aggressive at sibcalls
+    where the target is in a MEM.  Thus we have to scan for different
+    patterns here than in newer compilers.  */
+-/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
+ /* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
+ /* { dg-final { scan-assembler-not {\t(lfence|pause)} } } */
+ /* { dg-final { scan-assembler-not "jmp\[ \t\]*\.LIND" } } */
+diff --git a/gcc/testsuite/gcc.target/i386/indirect-thunk-extern-3.c b/gcc/testsuite/gcc.target/i386/indirect-thunk-extern-3.c
+index d9964c25bbd..385626850a2 100644
+--- a/gcc/testsuite/gcc.target/i386/indirect-thunk-extern-3.c
++++ b/gcc/testsuite/gcc.target/i386/indirect-thunk-extern-3.c
+@@ -12,9 +12,8 @@ male_indirect_jump (long offset)
+   return 0;
+ }
+ 
+-/* { dg-final { scan-assembler "push(?:l|q)\[ \t\]*_?dispatch" { target { { ! x32 } && *-*-linux* } } } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk" { target { ! x32 } } } } */
+-/* { dg-final { scan-assembler-times "jmp\[ \t\]*\.LIND" 1 { target { ! x32 } } } } */
+-/* { dg-final { scan-assembler-times "call\[ \t\]*\.LIND" 1 { target { ! x32 } } } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" { target x32 } } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
+ /* { dg-final { scan-assembler-not {\t(lfence|pause)} } } */
++/* { dg-final { scan-assembler-not "jmp\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler-not "call\[ \t\]*\.LIND" } } */
+diff --git a/gcc/testsuite/gcc.target/i386/indirect-thunk-extern-4.c b/gcc/testsuite/gcc.target/i386/indirect-thunk-extern-4.c
+index d4dca4dc5fe..1ae49b137ca 100644
+--- a/gcc/testsuite/gcc.target/i386/indirect-thunk-extern-4.c
++++ b/gcc/testsuite/gcc.target/i386/indirect-thunk-extern-4.c
+@@ -12,9 +12,7 @@ male_indirect_jump (long offset)
+   return 0;
+ }
+ 
+-/* { dg-final { scan-assembler "push(?:l|q)\[ \t\]*_?dispatch" { target { { ! x32 } && *-*-linux* } } } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk" { target { ! x32 } } } } */
+-/* { dg-final { scan-assembler-times "jmp\[ \t\]*\.LIND" 1 { target { ! x32 } } } } */
+-/* { dg-final { scan-assembler-times "call\[ \t\]*\.LIND" 1 { target { ! x32 } } } } */
+ /* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" { target x32 } } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
+ /* { dg-final { scan-assembler-not {\t(lfence|pause)} } } */
+diff --git a/gcc/testsuite/gcc.target/i386/indirect-thunk-extern-7.c b/gcc/testsuite/gcc.target/i386/indirect-thunk-extern-7.c
+index aece9383697..2b9a33e93dc 100644
+--- a/gcc/testsuite/gcc.target/i386/indirect-thunk-extern-7.c
++++ b/gcc/testsuite/gcc.target/i386/indirect-thunk-extern-7.c
+@@ -35,9 +35,8 @@ bar (int i)
+     }
+ }
+ 
+-/* { dg-final { scan-assembler "push(?:l|q)\[ \t\]*\.L\[0-9\]+\\(,%" { target { { ! x32 } && *-*-linux* } } } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk" { target { ! x32 } } } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk_(r|e)ax" { target x32 } } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*\.L\[0-9\]+\\(,%" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
+ /* { dg-final { scan-assembler-not {\t(lfence|pause)} } } */
+ /* { dg-final { scan-assembler-not "jmp\[ \t\]*\.LIND" } } */
+ /* { dg-final { scan-assembler-not "call\[ \t\]*\.LIND" } } */
+diff --git a/gcc/testsuite/gcc.target/i386/indirect-thunk-inline-1.c b/gcc/testsuite/gcc.target/i386/indirect-thunk-inline-1.c
+index e3cea3fa3c2..dbda34ab038 100644
+--- a/gcc/testsuite/gcc.target/i386/indirect-thunk-inline-1.c
++++ b/gcc/testsuite/gcc.target/i386/indirect-thunk-inline-1.c
+@@ -14,7 +14,7 @@ male_indirect_jump (long offset)
+ /* Our gcc-4.8 based compiler is not as aggressive at sibcalls
+    where the target is in a MEM.  Thus we have to scan for different
+    patterns here than in newer compilers.  */
+-/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
+ /* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+ /* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
+ /* { dg-final { scan-assembler {\tpause} } } */
+diff --git a/gcc/testsuite/gcc.target/i386/indirect-thunk-inline-2.c b/gcc/testsuite/gcc.target/i386/indirect-thunk-inline-2.c
+index 62229969c90..810824666ef 100644
+--- a/gcc/testsuite/gcc.target/i386/indirect-thunk-inline-2.c
++++ b/gcc/testsuite/gcc.target/i386/indirect-thunk-inline-2.c
+@@ -14,7 +14,7 @@ male_indirect_jump (long offset)
+ /* Our gcc-4.8 based compiler is not as aggressive at sibcalls
+    where the target is in a MEM.  Thus we have to scan for different
+    patterns here than in newer compilers.  */
+-/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
+ /* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+ /* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
+ /* { dg-final { scan-assembler {\tpause} } } */
+diff --git a/gcc/testsuite/gcc.target/i386/indirect-thunk-inline-3.c b/gcc/testsuite/gcc.target/i386/indirect-thunk-inline-3.c
+index 2eef6f35a75..4a63ebed8ab 100644
+--- a/gcc/testsuite/gcc.target/i386/indirect-thunk-inline-3.c
++++ b/gcc/testsuite/gcc.target/i386/indirect-thunk-inline-3.c
+@@ -12,7 +12,7 @@ male_indirect_jump (long offset)
+   return 0;
+ }
+ 
+-/* { dg-final { scan-assembler "push(?:l|q)\[ \t\]*_?dispatch" { target { { ! x32 } && *-*-linux* } } } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
+ /* { dg-final { scan-assembler-times "jmp\[ \t\]*\.LIND" 2 } } */
+ /* { dg-final { scan-assembler-times "call\[ \t\]*\.LIND" 2 } } */
+ /* { dg-final { scan-assembler-times {\tpause} 1 } } */
+diff --git a/gcc/testsuite/gcc.target/i386/indirect-thunk-inline-4.c b/gcc/testsuite/gcc.target/i386/indirect-thunk-inline-4.c
+index e825a10f14c..a395ffca018 100644
+--- a/gcc/testsuite/gcc.target/i386/indirect-thunk-inline-4.c
++++ b/gcc/testsuite/gcc.target/i386/indirect-thunk-inline-4.c
+@@ -12,7 +12,7 @@ male_indirect_jump (long offset)
+   return 0;
+ }
+ 
+-/* { dg-final { scan-assembler "push(?:l|q)\[ \t\]*_?dispatch" { target { { ! x32 } && *-*-linux* } } } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
+ /* { dg-final { scan-assembler-times "jmp\[ \t\]*\.LIND" 2 } } */
+ /* { dg-final { scan-assembler-times "call\[ \t\]*\.LIND" 2 } } */
+ /* { dg-final { scan-assembler-times {\tpause} 1 } } */
+diff --git a/gcc/testsuite/gcc.target/i386/indirect-thunk-inline-7.c b/gcc/testsuite/gcc.target/i386/indirect-thunk-inline-7.c
+index c67066cf197..ea009245a58 100644
+--- a/gcc/testsuite/gcc.target/i386/indirect-thunk-inline-7.c
++++ b/gcc/testsuite/gcc.target/i386/indirect-thunk-inline-7.c
+@@ -35,8 +35,8 @@ bar (int i)
+     }
+ }
+ 
+-/* { dg-final { scan-assembler "push(?:l|q)\[ \t\]*\.L\[0-9\]+\\(,%" { target { { ! x32 } && *-*-linux* } } } } */
+-/* { dg-final { scan-assembler-not "pushq\[ \t\]%rax" { target x32 } } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*\.L\[0-9\]+\\(,%" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler-not "pushq\[ \t\]%(r|e)ax" } } */
+ /* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+ /* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
+ /* { dg-final { scan-assembler {\tpause} } } */
+diff --git a/gcc/testsuite/gcc.target/i386/ret-thunk-10.c b/gcc/testsuite/gcc.target/i386/ret-thunk-10.c
+index e6fea84a4d9..af9023af613 100644
+--- a/gcc/testsuite/gcc.target/i386/ret-thunk-10.c
++++ b/gcc/testsuite/gcc.target/i386/ret-thunk-10.c
+@@ -15,9 +15,6 @@ foo (void)
+ /* { dg-final { scan-assembler-not "jmp\[ \t\]*__x86_return_thunk" } } */
+ /* { dg-final { scan-assembler-times {\tpause} 2 } } */
+ /* { dg-final { scan-assembler-times {\tlfence} 2 } } */
+-/* { dg-final { scan-assembler "push(?:l|q)\[ \t\]*_?bar" { target { { ! x32 } && *-*-linux* } } } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk" { target { ! x32 } }  } } */
+-/* { dg-final { scan-assembler "__x86_indirect_thunk:" { target { ! x32 } }  } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" { target { x32 } }  } } */
+-/* { dg-final { scan-assembler "__x86_indirect_thunk_(r|e)ax:" { target { x32 } }  } } */
+-/* { dg-final { scan-assembler-not "pushq\[ \t\]%rax" { target x32 } } } */
++/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
++/* { dg-final { scan-assembler "__x86_indirect_thunk_(r|e)ax:" } } */
++/* { dg-final { scan-assembler-not "pushq\[ \t\]%rax" } } */
+diff --git a/gcc/testsuite/gcc.target/i386/ret-thunk-11.c b/gcc/testsuite/gcc.target/i386/ret-thunk-11.c
+index e239ec4542f..ba467c59b36 100644
+--- a/gcc/testsuite/gcc.target/i386/ret-thunk-11.c
++++ b/gcc/testsuite/gcc.target/i386/ret-thunk-11.c
+@@ -15,9 +15,6 @@ foo (void)
+ /* { dg-final { scan-assembler-times {\tlfence} 1 } } */
+ /* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+ /* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler "push(?:l|q)\[ \t\]*_?bar" { target { { ! x32 } && *-*-linux* } } } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk" { target { ! x32 } } } } */
+-/* { dg-final { scan-assembler "__x86_indirect_thunk:" { target { ! x32 } }  } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" { target { x32 } }  } } */
+-/* { dg-final { scan-assembler "__x86_indirect_thunk_(r|e)ax:" { target { x32 } }  } } */
+-/* { dg-final { scan-assembler-not "pushq\[ \t\]%rax" { target x32 } } } */
++/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
++/* { dg-final { scan-assembler "__x86_indirect_thunk_(r|e)ax:" } } */
++/* { dg-final { scan-assembler-not "pushq\[ \t\]%rax" } } */
+diff --git a/gcc/testsuite/gcc.target/i386/ret-thunk-12.c b/gcc/testsuite/gcc.target/i386/ret-thunk-12.c
+index fa3181303c9..43e57cac2c3 100644
+--- a/gcc/testsuite/gcc.target/i386/ret-thunk-12.c
++++ b/gcc/testsuite/gcc.target/i386/ret-thunk-12.c
+@@ -15,8 +15,6 @@ foo (void)
+ /* { dg-final { scan-assembler-times {\tlfence} 1 } } */
+ /* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+ /* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk" { target { ! x32 } } } } */
+-/* { dg-final { scan-assembler "__x86_indirect_thunk:" { target { ! x32 } }  } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" { target { x32 } }  } } */
+-/* { dg-final { scan-assembler "__x86_indirect_thunk_(r|e)ax:" { target { x32 } }  } } */
+-/* { dg-final { scan-assembler-not "pushq\[ \t\]%rax" { target x32 } } } */
++/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
++/* { dg-final { scan-assembler "__x86_indirect_thunk_(r|e)ax:" } } */
++/* { dg-final { scan-assembler-not "pushq\[ \t\]%rax" } } */
+diff --git a/gcc/testsuite/gcc.target/i386/ret-thunk-13.c b/gcc/testsuite/gcc.target/i386/ret-thunk-13.c
+index fd5b41fdd3f..55f156c4376 100644
+--- a/gcc/testsuite/gcc.target/i386/ret-thunk-13.c
++++ b/gcc/testsuite/gcc.target/i386/ret-thunk-13.c
+@@ -14,9 +14,8 @@ foo (void)
+ /* { dg-final { scan-assembler "jmp\[ \t\]*__x86_return_thunk" } } */
+ /* { dg-final { scan-assembler-times {\tpause} 2 } } */
+ /* { dg-final { scan-assembler-times {\tlfence} 2 } } */
+-/* { dg-final { scan-assembler "push(?:l|q)\[ \t\]*_?bar" { target { { ! x32 } && *-*-linux* } } } } */
+ /* { dg-final { scan-assembler-times "jmp\[ \t\]*\.LIND" 3 } } */
+ /* { dg-final { scan-assembler-times "call\[ \t\]*\.LIND" 3 } } */
+ /* { dg-final { scan-assembler-not "jmp\[ \t\]*__x86_indirect_thunk" } } */
+-/* { dg-final { scan-assembler-not "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" { target { x32 } }  } } */
+-/* { dg-final { scan-assembler-not "pushq\[ \t\]%rax" { target x32 } } } */
++/* { dg-final { scan-assembler-not "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
++/* { dg-final { scan-assembler-not "pushq\[ \t\]%rax" } } */
+diff --git a/gcc/testsuite/gcc.target/i386/ret-thunk-14.c b/gcc/testsuite/gcc.target/i386/ret-thunk-14.c
+index d606373ead1..1c790436a53 100644
+--- a/gcc/testsuite/gcc.target/i386/ret-thunk-14.c
++++ b/gcc/testsuite/gcc.target/i386/ret-thunk-14.c
+@@ -16,7 +16,6 @@ foo (void)
+ /* { dg-final { scan-assembler-not "jmp\[ \t\]*__x86_return_thunk" } } */
+ /* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+ /* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler "push(?:l|q)\[ \t\]*_?bar" { target { { ! x32 } && *-*-linux* } } } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk" { target { ! x32 } } } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" { target { x32 } }  } } */
+-/* { dg-final { scan-assembler-not "pushq\[ \t\]%rax" { target x32 } } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?bar" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
++/* { dg-final { scan-assembler-not "pushq\[ \t\]%rax" } } */
+diff --git a/gcc/testsuite/gcc.target/i386/ret-thunk-15.c b/gcc/testsuite/gcc.target/i386/ret-thunk-15.c
+index 75e45e226b8..58aba319cba 100644
+--- a/gcc/testsuite/gcc.target/i386/ret-thunk-15.c
++++ b/gcc/testsuite/gcc.target/i386/ret-thunk-15.c
+@@ -16,7 +16,6 @@ foo (void)
+ /* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
+ /* { dg-final { scan-assembler-times {\tpause} 1 } } */
+ /* { dg-final { scan-assembler-times {\tlfence} 1 } } */
+-/* { dg-final { scan-assembler "push(?:l|q)\[ \t\]*_?bar" { target { { ! x32 } && *-*-linux* } } } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk" { target { ! x32 } } } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" { target x32 } } } */
+-/* { dg-final { scan-assembler-not "pushq\[ \t\]%rax" { target x32 } } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?bar" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
++/* { dg-final { scan-assembler-not "pushq\[ \t\]%rax" } } */
+diff --git a/gcc/testsuite/gcc.target/i386/ret-thunk-9.c b/gcc/testsuite/gcc.target/i386/ret-thunk-9.c
+index a605c26c46f..eee230ca2f6 100644
+--- a/gcc/testsuite/gcc.target/i386/ret-thunk-9.c
++++ b/gcc/testsuite/gcc.target/i386/ret-thunk-9.c
+@@ -14,11 +14,8 @@ foo (void)
+ /* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+ /* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
+ /* { dg-final { scan-assembler "__x86_return_thunk:" } } */
+-/* { dg-final { scan-assembler-times {\tpause} 1 { target { ! x32 } } } } */
+-/* { dg-final { scan-assembler-times {\tlfence} 1 { target { ! x32 } } } } */
+-/* { dg-final { scan-assembler "push(?:l|q)\[ \t\]*_?bar" { target { { ! x32 } && *-*-linux* } } } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk" { target { ! x32 } } } } */
+-/* { dg-final { scan-assembler-times {\tpause} 2 { target { x32 } } } } */
+-/* { dg-final { scan-assembler-times {\tlfence} 2 { target { x32 } } } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" { target { x32 } } } } */
+-/* { dg-final { scan-assembler-not "pushq\[ \t\]%rax" { target x32 } } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?bar" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler-times {\tpause} 2 } } */
++/* { dg-final { scan-assembler-times {\tlfence} 2 } } */
++/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
++/* { dg-final { scan-assembler-not "pushq\[ \t\]%rax" } } */

@@ -1,0 +1,162 @@
+	* cif-code.def: Add NEVER_EXECUTED.
+	* ipa-inline-analysis.c (reset_inline_summary,
+	compute_inline_parameters, estimate_calls_size_and_time,
+	inline_update_overall_summary): Track number of calls.
+	(never_executed_edge_p): New predicate.
+	* ipa-inline.c (want_inline_self_recursive_call_p): do not inline
+	recursively for calls that are not going to be executed.
+	(inline_small_functions): Do not inline never exeucted edge if callee
+	has too many calls.
+	* ipa-inline.h (inline_summary): Add num calls.
+	(never_executed_edge_p): New.
+
+--- gcc/cif-code.def	(revision 257016)
++++ gcc/cif-code.def	(working copy)
+@@ -103,3 +103,6 @@ DEFCIFCODE(TARGET_OPTION_MISMATCH, N_("t
+ 
+ /* We can't inline because of mismatched optimization levels.  */
+ DEFCIFCODE(OPTIMIZATION_MISMATCH, N_("optimization level attribute mismatch"))
++
++/* We know that the call will be optimized out.  */
++DEFCIFCODE(NEVER_EXECUTED, N_("never executed"))
+--- gcc/ipa-inline-analysis.c	(revision 257016)
++++ gcc/ipa-inline-analysis.c	(working copy)
+@@ -990,6 +990,7 @@ reset_inline_summary (struct cgraph_node
+   info->stack_frame_offset = 0;
+   info->size = 0;
+   info->time = 0;
++  info->num_calls = 0;
+   info->growth = 0;
+   info->scc_no = 0;
+   if (info->loop_iterations)
+@@ -2704,6 +2705,7 @@ compute_inline_parameters (struct cgraph
+   /* Inlining characteristics are maintained by the cgraph_mark_inline.  */
+   info->time = info->self_time;
+   info->size = info->self_size;
++  info->num_calls = 0;
+   info->stack_frame_offset = 0;
+   info->estimated_stack_size = info->estimated_self_stack_size;
+ #ifdef ENABLE_CHECKING
+@@ -2816,7 +2818,7 @@ estimate_edge_size_and_time (struct cgra
+ 
+ static void
+ estimate_calls_size_and_time (struct cgraph_node *node, int *size, int *time,
+-			      inline_hints *hints,
++			      inline_hints *hints, int *num,
+ 			      clause_t possible_truths,
+ 			      vec<tree> known_vals,
+ 			      vec<tree> known_binfos,
+@@ -2826,6 +2828,7 @@ estimate_calls_size_and_time (struct cgr
+   for (e = node->callees; e; e = e->next_callee)
+     {
+       struct inline_edge_summary *es = inline_edge_summary (e);
++      (*num)++;
+       if (!es->predicate
+ 	  || evaluate_predicate (es->predicate, possible_truths))
+ 	{
+@@ -2838,7 +2841,7 @@ estimate_calls_size_and_time (struct cgr
+ 					   known_aggs, hints);
+ 	    }
+ 	  else
+-	    estimate_calls_size_and_time (e->callee, size, time, hints,
++	    estimate_calls_size_and_time (e->callee, size, time, hints, num,
+ 					  possible_truths,
+ 					  known_vals, known_binfos,
+ 					  known_aggs);
+@@ -2846,6 +2849,7 @@ estimate_calls_size_and_time (struct cgr
+     }
+   for (e = node->indirect_calls; e; e = e->next_callee)
+     {
++      (*num)++;
+       struct inline_edge_summary *es = inline_edge_summary (e);
+       if (!es->predicate
+ 	  || evaluate_predicate (es->predicate, possible_truths))
+@@ -2936,7 +2940,8 @@ estimate_node_size_and_time (struct cgra
+   if (DECL_DECLARED_INLINE_P (node->symbol.decl))
+     hints |= INLINE_HINT_declared_inline;
+ 
+-  estimate_calls_size_and_time (node, &size, &time, &hints, possible_truths,
++  int num = 0;
++  estimate_calls_size_and_time (node, &size, &time, &hints, &num, possible_truths,
+ 				known_vals, known_binfos, known_aggs);
+   gcc_checking_assert (size >= 0);
+   gcc_checking_assert (time >= 0);
+@@ -3369,13 +3374,14 @@ inline_update_overall_summary (struct cg
+ 
+   info->size = 0;
+   info->time = 0;
++  info->num_calls = 0;
+   for (i = 0; vec_safe_iterate (info->entry, i, &e); i++)
+     {
+       info->size += e->size, info->time += e->time;
+       if (info->time > MAX_TIME * INLINE_TIME_SCALE)
+ 	info->time = MAX_TIME * INLINE_TIME_SCALE;
+     }
+-  estimate_calls_size_and_time (node, &info->size, &info->time, NULL,
++  estimate_calls_size_and_time (node, &info->size, &info->time, NULL, &info->num_calls,
+ 				~(clause_t) (1 << predicate_false_condition),
+ 				vNULL, vNULL, vNULL);
+   info->time = (info->time + INLINE_TIME_SCALE / 2) / INLINE_TIME_SCALE;
+@@ -3528,6 +3534,14 @@ do_estimate_edge_hints (struct cgraph_ed
+   return hints;
+ }
+ 
++/* Return true if edge is never executed.  */
++bool
++never_executed_edge_p (struct cgraph_edge *e)
++{
++ struct inline_edge_summary *es = inline_edge_summary (e);
++ return es->predicate && false_predicate_p (es->predicate);
++}
++
+ 
+ /* Estimate self time of the function NODE after inlining EDGE.  */
+ 
+--- gcc/ipa-inline.c	(revision 257016)
++++ gcc/ipa-inline.c	(working copy)
+@@ -656,6 +656,11 @@ want_inline_self_recursive_call_p (struc
+       reason = "--param max-inline-recursive-depth exceeded.";
+       want_inline = false;
+     }
++  else if (never_executed_edge_p (edge))
++    {
++      reason = "edge is never executed.";
++      want_inline = false;
++    }
+ 
+   if (outer_node->global.inlined_to)
+     caller_freq = outer_node->callers->frequency;
+@@ -1597,6 +1602,14 @@ inline_small_functions (void)
+ 		outer_node = where, depth++;
+ 	      where = where->callers->caller;
+ 	    }
++	  if (never_executed_edge_p (edge)
++	      && inline_summary (edge->callee)->num_calls > 30)
++	    {
++	      if (dump_file)
++	        fprintf (dump_file, "Never executed edge\n");
++	      edge->inline_failed = CIF_NEVER_EXECUTED;
++	      continue;
++	    }
+ 	  if (outer_node
+ 	      && !want_inline_self_recursive_call_p (edge, outer_node,
+ 						     true, depth))
+--- gcc/ipa-inline.h	(revision 257016)
++++ gcc/ipa-inline.h	(working copy)
+@@ -132,6 +132,7 @@ struct GTY(()) inline_summary
+   /* Estimated size of the function after inlining.  */
+   int time;
+   int size;
++  int num_calls;
+ 
+   /* Conditional size/time information.  The summaries are being
+      merged during inlining.  */
+@@ -226,6 +227,7 @@ inline_hints do_estimate_edge_hints (str
+ void initialize_growth_caches (void);
+ void free_growth_caches (void);
+ void compute_inline_parameters (struct cgraph_node *, bool);
++bool never_executed_edge_p (struct cgraph_edge *);
+ 
+ /* In ipa-inline-transform.c  */
+ bool inline_call (struct cgraph_edge *, bool, vec<cgraph_edge_p> *, int *, bool);
+

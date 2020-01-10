@@ -1,0 +1,64 @@
+commit 49033c9c57a415db02ac5d98badf5f53342bca83
+Author: krebbel <krebbel@138bc75d-0d04-0410-961f-82ee72b054a4>
+Date:   Thu Apr 12 09:14:57 2018 +0000
+
+    IBM Z: Spectre: Prevent thunk cfi to be emitted with -fno-dwarf2-cfi-asm
+    
+    The CFI magic we emit as part of the indirect branch thunks in order to
+    have somewhat sane unwind information must not be emitted with
+    -fno-dwarf2-cfi-asm.
+    
+    gcc/ChangeLog:
+    
+    2018-04-12  Andreas Krebbel  <krebbel@linux.vnet.ibm.com>
+    
+            * config/s390/s390.c (s390_output_indirect_thunk_function): Check
+            also for flag_dwarf2_cfi_asm.
+    
+    gcc/testsuite/ChangeLog:
+    
+    2018-04-12  Andreas Krebbel  <krebbel@linux.vnet.ibm.com>
+    
+            * gcc.target/s390/nobp-no-dwarf2-cfi.c: New test.
+    
+    
+    
+    git-svn-id: svn+ssh://gcc.gnu.org/svn/gcc/trunk@259340 138bc75d-0d04-0410-961f-82ee72b054a4
+
+diff -Nrup gcc/config/s390/s390.c gcc/config/s390/s390.c
+--- gcc/config/s390/s390.c	2018-04-18 13:35:43.856279249 -0600
++++ gcc/config/s390/s390.c	2018-04-18 13:36:21.037007877 -0600
+@@ -14091,7 +14091,7 @@ s390_output_indirect_thunk_function (uns
+ 
+      calls: Instead of caller->thunk the backtrace will be
+      caller->callee->thunk   */
+-  if (flag_asynchronous_unwind_tables)
++  if (flag_asynchronous_unwind_tables && flag_dwarf2_cfi_asm)
+     {
+       fputs ("\t.cfi_signal_frame\n", asm_out_file);
+       fprintf (asm_out_file, "\t.cfi_return_column %d\n", regno);
+diff --git gcc/testsuite/gcc.target/s390/nobp-no-dwarf2-cfi.c gcc/testsuite/gcc.target/s390/nobp-no-dwarf2-cfi.c
+new file mode 100644
+index 0000000..75e32a1
+--- /dev/null
++++ gcc/testsuite/gcc.target/s390/nobp-no-dwarf2-cfi.c
+@@ -0,0 +1,19 @@
++/* { dg-do run } */
++/* { dg-options "-O3 -march=z900 --save-temps -mfunction-return-reg=thunk -mindirect-branch-table -fno-dwarf2-cfi-asm" } */
++
++/* Make sure that we do not emit .cfi directives when -fno-dwarf2-cfi-asm is being used.  */
++
++int
++main ()
++{
++  return 0;
++}
++
++/* 1 x main
++/* { dg-final { scan-assembler-times "jg\t__s390_indirect_jump" 1 } } */
++/* { dg-final { scan-assembler "ex\t" } } */
++
++/* { dg-final { scan-assembler-not "section\t.s390_indirect_jump" } } */
++/* { dg-final { scan-assembler-not "section\t.s390_indirect_call" } } */
++/* { dg-final { scan-assembler     "section\t.s390_return_reg" } } */
++/* { dg-final { scan-assembler-not "section\t.s390_return_mem" } } */

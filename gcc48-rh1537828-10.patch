@@ -1,0 +1,91 @@
+diff --git a/gcc/testsuite/gcc.dg/stack-check-5.c b/gcc/testsuite/gcc.dg/stack-check-5.c
+index 850e023ea4e..604fa3cf6c5 100644
+--- a/gcc/testsuite/gcc.dg/stack-check-5.c
++++ b/gcc/testsuite/gcc.dg/stack-check-5.c
+@@ -1,7 +1,7 @@
+ /* { dg-do compile } */
+ /* { dg-options "-O2 -fstack-clash-protection -fdump-rtl-pro_and_epilogue -fno-optimize-sibling-calls --param stack-clash-protection-probe-interval=12 --param stack-clash-protection-guard-size=12" } */
+ /* { dg-require-effective-target supports_stack_clash_protection } */
+-/* { dg-skip-if "" { *-*-* } { "-fstack-protector" } { "" } } */
++/* { dg-skip-if "" { *-*-* } { "-fstack-protector*" } { "" } } */
+ 
+ 
+ /* Otherwise the S/390 back-end might save the stack pointer in f2 ()
+diff --git a/gcc/testsuite/gcc.dg/stack-check-6.c b/gcc/testsuite/gcc.dg/stack-check-6.c
+index ab4b0e8894c..fe75612b737 100644
+--- a/gcc/testsuite/gcc.dg/stack-check-6.c
++++ b/gcc/testsuite/gcc.dg/stack-check-6.c
+@@ -1,7 +1,7 @@
+ /* { dg-do compile } */
+ /* { dg-options "-O2 -fstack-clash-protection -fdump-rtl-pro_and_epilogue -fno-optimize-sibling-calls --param stack-clash-protection-probe-interval=12 --param stack-clash-protection-guard-size=12" } */
+ /* { dg-require-effective-target supports_stack_clash_protection } */
+-/* { dg-skip-if "" { *-*-* } { "-fstack-protector" } { "" } } */
++/* { dg-skip-if "" { *-*-* } { "-fstack-protector*" } { "" } } */
+ 
+ 
+ extern void foo (char *);
+diff --git a/gcc/testsuite/gcc.dg/stack-check-6a.c b/gcc/testsuite/gcc.dg/stack-check-6a.c
+index 468d649a4fa..8fb9c621585 100644
+--- a/gcc/testsuite/gcc.dg/stack-check-6a.c
++++ b/gcc/testsuite/gcc.dg/stack-check-6a.c
+@@ -4,7 +4,7 @@
+ /* { dg-do compile  } */
+ /* { dg-options "-O2 -fstack-clash-protection -fdump-rtl-pro_and_epilogue -fno-optimize-sibling-calls --param stack-clash-protection-probe-interval=12 --param stack-clash-protection-guard-size=16" } */
+ /* { dg-require-effective-target supports_stack_clash_protection  } */
+-/* { dg-skip-if "" { *-*-* } { "-fstack-protector" } { "" } } */
++/* { dg-skip-if "" { *-*-* } { "-fstack-protector*" } { "" } } */
+ 
+ 
+ #include "stack-check-6.c"
+diff --git a/gcc/testsuite/gcc.target/i386/stack-check-11.c b/gcc/testsuite/gcc.target/i386/stack-check-11.c
+index fe5b2c2b844..43a291857b6 100644
+--- a/gcc/testsuite/gcc.target/i386/stack-check-11.c
++++ b/gcc/testsuite/gcc.target/i386/stack-check-11.c
+@@ -1,6 +1,8 @@
+ /* { dg-do compile } */
+ /* { dg-options "-O2 -fstack-clash-protection" } */
+ /* { dg-require-effective-target supports_stack_clash_protection } */
++/* { dg-skip-if "" { *-*-* } { "-fstack-protector*" } { "" } } */
++
+ 
+ #include <stdint.h>
+ 
+diff --git a/gcc/testsuite/gcc.target/i386/stack-check-17.c b/gcc/testsuite/gcc.target/i386/stack-check-17.c
+index dcd29305a2c..da6ea016815 100644
+--- a/gcc/testsuite/gcc.target/i386/stack-check-17.c
++++ b/gcc/testsuite/gcc.target/i386/stack-check-17.c
+@@ -1,6 +1,8 @@
+ /* { dg-do compile } */
+ /* { dg-options "-O2 -fstack-clash-protection -mtune=generic -fomit-frame-pointer" } */
+ /* { dg-require-effective-target supports_stack_clash_protection } */
++/* { dg-skip-if "" { *-*-* } { "-fstack-protector*" } { "" } } */
++
+ 
+ 
+ int x0, x1;
+diff --git a/gcc/testsuite/gcc.target/i386/stack-check-18.c b/gcc/testsuite/gcc.target/i386/stack-check-18.c
+index 1638f776267..1cf4bbcfafb 100644
+--- a/gcc/testsuite/gcc.target/i386/stack-check-18.c
++++ b/gcc/testsuite/gcc.target/i386/stack-check-18.c
+@@ -1,7 +1,7 @@
+ /* { dg-do compile } */
+ /* { dg-options "-O2 -fstack-clash-protection -mtune=generic -fdump-rtl-expand" } */
+ /* { dg-require-effective-target supports_stack_clash_protection } */
+-/* { dg-skip-if "" { *-*-* } { "-fstack-protector" } { "" } } */
++/* { dg-skip-if "" { *-*-* } { "-fstack-protector*" } { "" } } */
+ 
+ int f1 (char *);
+ 
+diff --git a/gcc/testsuite/gcc.target/i386/stack-check-19.c b/gcc/testsuite/gcc.target/i386/stack-check-19.c
+index c341801189c..49f3a20af8b 100644
+--- a/gcc/testsuite/gcc.target/i386/stack-check-19.c
++++ b/gcc/testsuite/gcc.target/i386/stack-check-19.c
+@@ -1,7 +1,7 @@
+ /* { dg-do compile } */
+ /* { dg-options "-O2 -fstack-clash-protection -mtune=generic -fdump-rtl-expand" } */
+ /* { dg-require-effective-target supports_stack_clash_protection } */
+-/* { dg-skip-if "" { *-*-* } { "-fstack-protector" } { "" } } */
++/* { dg-skip-if "" { *-*-* } { "-fstack-protector*" } { "" } } */
+ 
+ int f1 (char *);
+ 

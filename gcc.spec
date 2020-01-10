@@ -2,7 +2,7 @@
 %global SVNREV 225304
 # Note, gcc_release must be integer, if you want to add suffixes to
 # %{release}, append them after %{gcc_release} on Release: line.
-%global gcc_release 28
+%global gcc_release 36
 %global _unpackaged_files_terminate_build 0
 %global _performance_build 1
 %global multilib_64_archs sparc64 ppc64 ppc64p7 s390x x86_64
@@ -79,7 +79,7 @@ Name: gcc
 %global gcc_version 4.8.5
 %endif
 Version: 4.8.5
-Release: %{gcc_release}%{?dist}.1
+Release: %{gcc_release}%{?dist}
 %if "%{version}" != "%{gcc_version}"
 %define gcc_provides %{gcc_version}-16%{?dist}
 %endif
@@ -262,6 +262,12 @@ Patch62: gcc48-pr80362.patch
 Patch63: gcc48-pr80692.patch
 Patch64: gcc48-pr82274.patch
 Patch65: gcc48-pr78416.patch
+Patch66: gcc48-rh1546728.patch
+Patch67: gcc48-rh1555397.patch
+Patch68: gcc48-pr81395.patch
+Patch69: gcc48-pr72717.patch
+Patch70: gcc48-pr66840.patch
+Patch71: gcc48-rh1546372.patch
 
 Patch1000: fastjar-0.97-segfault.patch
 Patch1001: fastjar-0.97-len1.patch
@@ -299,6 +305,12 @@ Patch1320: gcc48-rh1469697-20.patch
 Patch1321: gcc48-rh1469697-21.patch
 Patch1322: gcc48-rh1469697-22.patch
 Patch1323: gcc48-rh1469697-23.patch
+Patch1324: gcc48-rh1537828-1.patch
+Patch1325: gcc48-rh1537828-2.patch
+Patch1326: gcc48-rh1537828-3.patch
+Patch1327: gcc48-rh1537828-4.patch
+Patch1328: gcc48-rh1537828-5.patch
+Patch1329: gcc48-rh1537828-10.patch
 
 Patch1401: gcc48-rh1535655-1.patch
 Patch1402: gcc48-rh1535655-2.patch
@@ -307,6 +319,10 @@ Patch1404: gcc48-rh1535655-4.patch
 Patch1405: gcc48-rh1535655-5.patch
 Patch1406: gcc48-rh1535655-6.patch
 Patch1407: gcc48-rh1552021.patch
+Patch1408: gcc48-rh1537828-6.patch
+Patch1409: gcc48-rh1537828-7.patch
+Patch1410: gcc48-rh1537828-8.patch
+Patch1411: gcc48-rh1537828-9.patch
 
 # On ARM EABI systems, we do want -gnueabi to be part of the
 # target triple.
@@ -1037,6 +1053,12 @@ touch -r %{PATCH27} libstdc++-v3/python/libstdcxx/v6/printers.py
 %patch63 -p0 -b .pr80692~
 %patch64 -p0 -b .pr82274~
 %patch65 -p0 -b .pr78416~
+%patch66 -p0 -b .rh1546728~
+%patch67 -p0 -b .rh1555397~
+%patch68 -p0 -b .pr81395~
+%patch69 -p0 -b .pr72717~
+%patch70 -p0 -b .pr66840~
+%patch71 -p0 -b .rh1546372~
 
 %if 0%{?_enable_debug_packages}
 cat > split-debuginfo.sh <<\EOF
@@ -1130,6 +1152,12 @@ tar xjf %{SOURCE10}
 %patch1321 -p1 -b .stack-clash-21~
 %patch1322 -p1 -b .stack-clash-22~
 %patch1323 -p1 -b .stack-clash-23~
+%patch1324 -p1 -b .stack-clash-24~
+%patch1325 -p1 -b .stack-clash-25~
+%patch1326 -p1 -b .stack-clash-26~
+%patch1327 -p1 -b .stack-clash-27~
+%patch1328 -p1 -b .stack-clash-28~
+%patch1329 -p1 -b .stack-clash-29~
 
 %patch1401 -p1 -b .retpolines-1~
 %patch1402 -p1 -b .retpolines-2~
@@ -1138,6 +1166,10 @@ tar xjf %{SOURCE10}
 %patch1405 -p1 -b .retpolines-5~
 %patch1406 -p1 -b .retpolines-6~
 %patch1407 -p0 -b .retpolines-7~
+%patch1408 -p0 -b .retpolines-8~
+%patch1409 -p1 -b .retpolines-9~
+%patch1410 -p1 -b .retpolines-10~
+%patch1411 -p1 -b .retpolines-11~
 
 
 sed -i -e 's/4\.8\.5/4.8.5/' gcc/BASE-VER
@@ -3516,6 +3548,33 @@ fi
 %{_prefix}/libexec/gcc/%{gcc_target_platform}/%{gcc_version}/plugin
 
 %changelog
+* Tue Jun 12 2018 Marek Polacek <polacek@redhat.com> 4.8.5-36
+- back out the last change
+
+* Tue Jun  5 2018 Marek Polacek <polacek@redhat.com> 4.8.5-35
+- adjust C++11 signatures to take a const_iterator (#1575888)
+
+* Thu Apr 26 2018 Marek Polacek <polacek@redhat.com> 4.8.5-34
+- fix infinite looping in -fipa-cp-clone (#1546372)
+- don't look for vsld gcc.target/powerpc/pr72717.c
+
+* Wed Apr 25 2018 Jeff Law <law@redhat.com> 4.8.5-33
+- Fix two minor problems with the backported spectre updates
+  from upstream.  (#1537828)
+
+* Thu Apr 19 2018 Jeff Law <law@redhat.com> 4.8.5-32
+- Backport various stack-clash and spectre fixes from upstream
+(#1537828)
+
+* Tue Apr 10 2018 Marek Polacek <polacek@redhat.com> 4.8.5-31
+- backport s390 -mpic-data-is-text-relative feature (#1555397)
+- fix crash when write follows large read (#1463706)
+- fix emit_move_insn ICE (#1565536)
+- add missing rs6000-cpus.def (#1512202)
+
+* Wed Apr  4 2018 Marek Polacek <polacek@redhat.com> 4.8.5-30
+- fix ICE when generating a vector shift by scalar (#1546728)
+
 * Tue Mar 27 2018 Jeff Law <law@redhat.com> 4.8.5-29
 - s390 retpoline support for spectre mitigation (#1552021)
 
